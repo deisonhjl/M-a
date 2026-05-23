@@ -1528,8 +1528,8 @@
         <article class="world-card" onclick="mostrarPantalla('ingles'); engIniciar();">
           <div class="world-icon">🇬🇧</div>
           <h2>English Adventure</h2>
-          <div class="difficulty">🤖 IA Generativa</div>
-          <p>¡Aprende inglés con ejercicios infinitos creados por inteligencia artificial! Cada ronda es única.</p>
+          <div class="difficulty">⭐ +200 ejercicios + 🤖 IA</div>
+          <p>¡Aprende inglés con cientos de ejercicios! Traducción, vocabulario, conversación y más. Modo IA opcional.</p>
           <button class="btn btn-cool">Let's Go!</button>
         </article>
 
@@ -1734,12 +1734,35 @@
               <span class="eng-mode-desc">¡Modo aleatorio!</span>
             </button>
           </div>
+          <!-- IA Mode toggle -->
+          <div id="engIAToggle" style="margin-top:20px; padding:16px; background:linear-gradient(135deg, rgba(99,102,241,.06), rgba(236,72,153,.06)); border-radius:20px; border:2px solid var(--borde); text-align:center;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
+              <span style="font-size:1.4rem;">🤖</span>
+              <strong style="color:var(--morado);">Modo IA (ejercicios infinitos)</strong>
+            </div>
+            <p style="font-size:.85rem; color:var(--morado-claro); margin-bottom:10px;">Genera ejercicios únicos con inteligencia artificial. Requiere contraseña del profesor.</p>
+            <div id="engIAOff">
+              <button class="btn btn-ghost btn-sm" onclick="engMostrarLoginIA()">🔑 Activar modo IA</button>
+            </div>
+            <div id="engIALogin" style="display:none;">
+              <div style="display:flex; gap:8px; max-width:320px; margin:0 auto;">
+                <input type="password" id="engIAPass" placeholder="Contraseña..." style="flex:1; text-align:center; font-size:1rem;" onkeydown="if(event.key==='Enter') engActivarIA();" />
+                <button class="btn btn-primary btn-sm" onclick="engActivarIA()">Entrar</button>
+              </div>
+              <p class="resultado" id="engIAError" style="text-align:center; font-size:.85rem;"></p>
+            </div>
+            <div id="engIAActive" style="display:none;">
+              <span style="color:var(--verde); font-weight:700;">✅ IA activada</span>
+              <span style="font-size:.82rem; color:var(--morado-claro); margin-left:8px;">Usos hoy: <strong id="engIAUsosHoy">0</strong>/30</span>
+              <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="engDesactivarIA()">Desactivar</button>
+            </div>
+          </div>
         </div>
 
         <!-- Loading -->
         <div id="engLoading" style="display:none; text-align:center; padding:40px 20px;">
           <div class="eng-loading-spinner"></div>
-          <p style="margin-top:16px; font-weight:700; color:var(--morado);" id="engLoadingText">🤖 La IA está creando tu ejercicio...</p>
+          <p style="margin-top:16px; font-weight:700; color:var(--morado);" id="engLoadingText">Preparando ejercicio...</p>
         </div>
 
         <!-- Ejercicio activo -->
@@ -1750,7 +1773,7 @@
           <div id="engAnswerArea"></div>
           <p class="resultado" id="engResultado" style="text-align:center;"></p>
           <div class="eng-explanation" id="engExplanation" style="display:none;"></div>
-          <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;" id="engActions" style="display:none;">
+          <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;" id="engActions">
             <button class="btn btn-primary" onclick="engPedir(engCurrentMode)">🔄 Otro ejercicio</button>
             <button class="btn btn-ghost btn-sm" onclick="document.getElementById('engModeSelect').style.display='block'; document.getElementById('engExercise').style.display='none';">🎮 Cambiar modo</button>
           </div>
@@ -2774,7 +2797,7 @@ document.addEventListener('click', (e) => {
 
 
 // ═══════════════════════════════════════════════
-// ENGLISH ADVENTURE — IA GENERATIVA
+// ENGLISH ADVENTURE — HÍBRIDO (BANCO LOCAL + IA)
 // ═══════════════════════════════════════════════
 
 let engRacha = 0;
@@ -2782,22 +2805,203 @@ let engPuntosTotal = 0;
 let engCurrentMode = 'random';
 let engCurrentData = null;
 let engAnswered = false;
+let engIAActivada = false;
+let engIAUsosHoy = 0;
+const ENG_IA_LIMITE_DIARIO = 30;
+const ENG_IA_PASS = 'mia2025';
 
-const engLoadingMsgs = [
-  '🤖 La IA está inventando un ejercicio para ti...',
-  '🧠 Pensando en algo divertido en inglés...',
-  '✨ Creando una aventura de vocabulario...',
-  '🎲 Mezclando palabras mágicas...',
-  '📚 Preparando tu lección personalizada...',
-  '🌟 Generando un reto especial para ti...'
-];
+// Track used exercises to avoid repeats
+let engUsedIndexes = { translate:[], complete:[], vocabulary:[], conversation:[], listen:[] };
+
+// ═══════════════════════════════════════════════
+// BANCO DE EJERCICIOS LOCALES (~200+ ejercicios)
+// ═══════════════════════════════════════════════
+
+const engBank = {
+translate: [
+  {category:"🔄 Traducción",instruction:"Traduce esta oración al inglés:",prompt:"El gato está dormido",options:["The cat is sleeping","The dog is sleeping","The cat is eating","The bird is sleeping"],correct:0,explanation:"'Cat' = gato, 'sleeping' = dormido/durmiendo",speakText:"The cat is sleeping",speakAnswer:"The cat is sleeping"},
+  {category:"🔄 Traducción",instruction:"Traduce esta oración al inglés:",prompt:"Yo tengo una mochila roja",options:["I have a blue bag","I have a red backpack","I like red bags","I want a backpack"],correct:1,explanation:"'Backpack' = mochila, 'red' = rojo/roja",speakText:"I have a red backpack",speakAnswer:"I have a red backpack"},
+  {category:"🔄 Traducción",instruction:"Traduce esta oración al inglés:",prompt:"Mi mamá cocina muy rico",options:["My mom cooks very well","My dad cooks a lot","My mom eats a lot","My sister cooks well"],correct:0,explanation:"'Mom' = mamá, 'cooks very well' = cocina muy rico/bien",speakText:"My mom cooks very well",speakAnswer:"My mom cooks very well"},
+  {category:"🔄 Traducción",instruction:"¿Cómo se dice en inglés?",prompt:"Hoy es un día soleado",options:["Today is a sunny day","Yesterday was cloudy","Tomorrow is rainy","Today is a cold night"],correct:0,explanation:"'Sunny' = soleado, 'today' = hoy",speakText:"Today is a sunny day",speakAnswer:"Today is a sunny day"},
+  {category:"🔄 Traducción",instruction:"Traduce al inglés:",prompt:"Me gusta jugar fútbol",options:["I like to play soccer","I like to play basketball","I don't like soccer","I want to play tennis"],correct:0,explanation:"'Play soccer' = jugar fútbol. En inglés americano se dice 'soccer'",speakText:"I like to play soccer",speakAnswer:"I like to play soccer"},
+  {category:"🔄 Traducción",instruction:"¿Cómo dirías esto en inglés?",prompt:"La maestra es muy amable",options:["The teacher is very kind","The student is very smart","The teacher is angry","The friend is very tall"],correct:0,explanation:"'Teacher' = maestra/maestro, 'kind' = amable",speakText:"The teacher is very kind",speakAnswer:"The teacher is very kind"},
+  {category:"🔄 Traducción",instruction:"Traduce esta oración:",prompt:"Tengo dos hermanos",options:["I have three sisters","I have two brothers","I want two dogs","I need two books"],correct:1,explanation:"'Brothers' = hermanos, 'two' = dos",speakText:"I have two brothers",speakAnswer:"I have two brothers"},
+  {category:"🔄 Traducción",instruction:"¿Cómo se dice?",prompt:"El perro está jugando en el parque",options:["The dog is playing in the park","The cat is sleeping in the house","The bird is flying in the sky","The dog is eating at home"],correct:0,explanation:"'Playing' = jugando, 'park' = parque",speakText:"The dog is playing in the park",speakAnswer:"The dog is playing in the park"},
+  {category:"🔄 Traducción",instruction:"Traduce al inglés:",prompt:"Quiero un vaso de agua",options:["I need a cup of milk","I want a glass of water","I like orange juice","I have a bottle of soda"],correct:1,explanation:"'Glass of water' = vaso de agua, 'want' = quiero",speakText:"I want a glass of water",speakAnswer:"I want a glass of water"},
+  {category:"🔄 Traducción",instruction:"¿Cómo dirías esto?",prompt:"Ella tiene los ojos verdes",options:["She has green eyes","She has blue hair","He has brown eyes","She likes green color"],correct:0,explanation:"'Green eyes' = ojos verdes, 'she has' = ella tiene",speakText:"She has green eyes",speakAnswer:"She has green eyes"},
+  {category:"🔄 Traducción",instruction:"Traduce:",prompt:"Nosotros vamos a la escuela",options:["We go to school","They go to the store","We play at home","You go to the park"],correct:0,explanation:"'We go' = nosotros vamos, 'school' = escuela",speakText:"We go to school",speakAnswer:"We go to school"},
+  {category:"🔄 Traducción",instruction:"¿Cómo se dice en inglés?",prompt:"Mi color favorito es el azul",options:["My favorite color is blue","My favorite animal is a dog","I like the color red","Blue is a nice color"],correct:0,explanation:"'Favorite' = favorito, 'blue' = azul",speakText:"My favorite color is blue",speakAnswer:"My favorite color is blue"},
+  {category:"🔄 Traducción",instruction:"Traduce al inglés:",prompt:"El helado de chocolate es delicioso",options:["The vanilla ice cream is cold","The chocolate ice cream is delicious","The chocolate cake is big","I like chocolate milk"],correct:1,explanation:"'Ice cream' = helado, 'delicious' = delicioso",speakText:"The chocolate ice cream is delicious",speakAnswer:"The chocolate ice cream is delicious"},
+  {category:"🔄 Traducción",instruction:"¿Cómo dirías esto?",prompt:"Los pájaros cantan en la mañana",options:["The birds sing in the morning","The dogs bark at night","The cats sleep all day","The fish swim in the sea"],correct:0,explanation:"'Birds' = pájaros, 'sing' = cantan, 'morning' = mañana",speakText:"The birds sing in the morning",speakAnswer:"The birds sing in the morning"},
+  {category:"🔄 Traducción",instruction:"Traduce:",prompt:"Estoy feliz porque es viernes",options:["I am happy because it is Friday","I am sad because it is Monday","I am tired because it is late","I am hungry because it is noon"],correct:0,explanation:"'Happy' = feliz, 'Friday' = viernes, 'because' = porque",speakText:"I am happy because it is Friday",speakAnswer:"I am happy because it is Friday"},
+  {category:"🔄 Traducción",instruction:"Traduce al inglés:",prompt:"Mi abuelo cuenta historias",options:["My grandfather tells stories","My grandmother cooks food","My uncle drives a car","My father reads books"],correct:0,explanation:"'Grandfather' = abuelo, 'tells stories' = cuenta historias",speakText:"My grandfather tells stories",speakAnswer:"My grandfather tells stories"},
+  {category:"🔄 Traducción",instruction:"¿Cómo se dice?",prompt:"Hay cinco estrellas en el cielo",options:["There are five stars in the sky","There are three moons at night","There is one sun in the morning","There are many clouds today"],correct:0,explanation:"'Stars' = estrellas, 'sky' = cielo, 'five' = cinco",speakText:"There are five stars in the sky",speakAnswer:"There are five stars in the sky"},
+  {category:"🔄 Traducción",instruction:"Traduce:",prompt:"La pizza está muy caliente",options:["The pizza is very hot","The soup is very cold","The bread is very fresh","The cake is very sweet"],correct:0,explanation:"'Hot' = caliente, 'pizza' se dice igual en inglés",speakText:"The pizza is very hot",speakAnswer:"The pizza is very hot"},
+  {category:"🔄 Traducción",instruction:"¿Cómo dirías?",prompt:"Necesito un lápiz y un borrador",options:["I need a pen and a ruler","I need a pencil and an eraser","I want a book and a notebook","I have a marker and paper"],correct:1,explanation:"'Pencil' = lápiz, 'eraser' = borrador",speakText:"I need a pencil and an eraser",speakAnswer:"I need a pencil and an eraser"},
+  {category:"🔄 Traducción",instruction:"Traduce al inglés:",prompt:"El elefante es el animal más grande",options:["The elephant is the biggest animal","The lion is the fastest animal","The giraffe is the tallest animal","The whale is the longest animal"],correct:0,explanation:"'Elephant' = elefante, 'biggest' = más grande",speakText:"The elephant is the biggest animal",speakAnswer:"The elephant is the biggest animal"},
+],
+
+complete: [
+  {category:"✏️ Completar",instruction:"Completa la oración en inglés:",prompt:"I _____ to school every day.",options:["go","eat","sleep","fly"],correct:0,explanation:"'Go to school' = ir a la escuela. Se usa 'go' para desplazarse a un lugar",speakText:"I go to school every day",speakAnswer:"go"},
+  {category:"✏️ Completar",instruction:"Elige la palabra correcta:",prompt:"She is _____ a red dress.",options:["eating","wearing","sleeping","reading"],correct:1,explanation:"'Wearing' = usando/vistiendo. Se usa para la ropa",speakText:"She is wearing a red dress",speakAnswer:"wearing"},
+  {category:"✏️ Completar",instruction:"¿Qué palabra falta?",prompt:"The sun rises in the _____.",options:["night","afternoon","morning","evening"],correct:2,explanation:"El sol sale en la 'morning' = mañana",speakText:"The sun rises in the morning",speakAnswer:"morning"},
+  {category:"✏️ Completar",instruction:"Completa:",prompt:"My dog likes to _____ in the park.",options:["cook","run","read","write"],correct:1,explanation:"Los perros les gusta 'run' = correr en el parque",speakText:"My dog likes to run in the park",speakAnswer:"run"},
+  {category:"✏️ Completar",instruction:"Elige la palabra correcta:",prompt:"We _____ dinner at seven o'clock.",options:["eat","play","draw","sing"],correct:0,explanation:"'Eat dinner' = cenar/comer la cena",speakText:"We eat dinner at seven o'clock",speakAnswer:"eat"},
+  {category:"✏️ Completar",instruction:"¿Qué palabra completa la oración?",prompt:"The baby is _____ because she is tired.",options:["laughing","crying","dancing","running"],correct:1,explanation:"'Crying' = llorando. Los bebés lloran cuando están cansados ('tired')",speakText:"The baby is crying because she is tired",speakAnswer:"crying"},
+  {category:"✏️ Completar",instruction:"Completa la oración:",prompt:"There are twelve _____ in a year.",options:["days","weeks","months","hours"],correct:2,explanation:"Hay 12 'months' = meses en un año",speakText:"There are twelve months in a year",speakAnswer:"months"},
+  {category:"✏️ Completar",instruction:"Elige la opción correcta:",prompt:"I brush my _____ every morning.",options:["hair","teeth","shoes","books"],correct:1,explanation:"'Brush my teeth' = cepillar mis dientes. Es una rutina diaria",speakText:"I brush my teeth every morning",speakAnswer:"teeth"},
+  {category:"✏️ Completar",instruction:"¿Qué falta?",prompt:"Birds can _____ in the sky.",options:["swim","fly","crawl","dig"],correct:1,explanation:"'Fly' = volar. Los pájaros vuelan en el cielo",speakText:"Birds can fly in the sky",speakAnswer:"fly"},
+  {category:"✏️ Completar",instruction:"Completa:",prompt:"I use a _____ to write in my notebook.",options:["fork","pencil","pillow","umbrella"],correct:1,explanation:"'Pencil' = lápiz. Lo usamos para escribir",speakText:"I use a pencil to write in my notebook",speakAnswer:"pencil"},
+  {category:"✏️ Completar",instruction:"Elige la correcta:",prompt:"The opposite of 'hot' is _____.",options:["big","cold","fast","tall"],correct:1,explanation:"'Cold' es lo opuesto de 'hot'. Frío vs caliente",speakText:"The opposite of hot is cold",speakAnswer:"cold"},
+  {category:"✏️ Completar",instruction:"¿Qué palabra falta?",prompt:"My mother _____ breakfast every morning.",options:["drives","makes","throws","breaks"],correct:1,explanation:"'Makes breakfast' = prepara/hace el desayuno",speakText:"My mother makes breakfast every morning",speakAnswer:"makes"},
+  {category:"✏️ Completar",instruction:"Completa la oración:",prompt:"In winter, it is very _____.",options:["hot","cold","fast","loud"],correct:1,explanation:"En invierno ('winter') hace mucho frío ('cold')",speakText:"In winter it is very cold",speakAnswer:"cold"},
+  {category:"✏️ Completar",instruction:"Elige:",prompt:"I _____ my homework after school.",options:["do","eat","wear","drive"],correct:0,explanation:"'Do homework' = hacer la tarea",speakText:"I do my homework after school",speakAnswer:"do"},
+  {category:"✏️ Completar",instruction:"Completa:",prompt:"A fish lives in the _____.",options:["sky","water","tree","house"],correct:1,explanation:"Los peces viven en el 'water' = agua",speakText:"A fish lives in the water",speakAnswer:"water"},
+  {category:"✏️ Completar",instruction:"¿Qué falta?",prompt:"She _____ a book before bed.",options:["reads","kicks","throws","drives"],correct:0,explanation:"'Reads a book' = lee un libro. Antes de dormir ('before bed')",speakText:"She reads a book before bed",speakAnswer:"reads"},
+  {category:"✏️ Completar",instruction:"Completa:",prompt:"We use an _____ when it rains.",options:["airplane","umbrella","oven","elephant"],correct:1,explanation:"'Umbrella' = paraguas/sombrilla. Lo usamos cuando llueve",speakText:"We use an umbrella when it rains",speakAnswer:"umbrella"},
+  {category:"✏️ Completar",instruction:"Elige la correcta:",prompt:"The _____ shines during the day.",options:["moon","star","sun","lamp"],correct:2,explanation:"El 'sun' = sol brilla durante el día",speakText:"The sun shines during the day",speakAnswer:"sun"},
+  {category:"✏️ Completar",instruction:"Completa:",prompt:"A doctor works in a _____.",options:["school","hospital","bakery","farm"],correct:1,explanation:"Un doctor trabaja en un 'hospital'",speakText:"A doctor works in a hospital",speakAnswer:"hospital"},
+  {category:"✏️ Completar",instruction:"¿Qué palabra falta?",prompt:"I _____ my hands before eating.",options:["wash","kick","throw","break"],correct:0,explanation:"'Wash my hands' = lavarme las manos",speakText:"I wash my hands before eating",speakAnswer:"wash"},
+],
+
+vocabulary: [
+  {category:"📖 Vocabulario",instruction:"¿Qué significa esta palabra en español?",prompt:"Butterfly",options:["Mariposa","Pájaro","Abeja","Libélula"],correct:0,explanation:"'Butterfly' = mariposa. ¡Se pronuncia 'bater-flai'!",speakText:"Butterfly",speakAnswer:"Butterfly"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Kitchen",options:["Dormitorio","Baño","Cocina","Jardín"],correct:2,explanation:"'Kitchen' = cocina. Es donde preparamos la comida",speakText:"Kitchen",speakAnswer:"Kitchen"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Strawberry",options:["Manzana","Fresa","Naranja","Uva"],correct:1,explanation:"'Strawberry' = fresa. Se pronuncia 'stro-beri'",speakText:"Strawberry",speakAnswer:"Strawberry"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa esta palabra?",prompt:"Rainbow",options:["Lluvia","Nube","Arcoíris","Tormenta"],correct:2,explanation:"'Rainbow' = arcoíris. 'Rain' = lluvia + 'bow' = arco",speakText:"Rainbow",speakAnswer:"Rainbow"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Pillow",options:["Mesa","Almohada","Silla","Cortina"],correct:1,explanation:"'Pillow' = almohada. Se pronuncia 'pilou'",speakText:"Pillow",speakAnswer:"Pillow"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Knee",options:["Codo","Hombro","Rodilla","Tobillo"],correct:2,explanation:"'Knee' = rodilla. La K es silenciosa: se dice 'nii'",speakText:"Knee",speakAnswer:"Knee"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Shoulder",options:["Hombro","Cadera","Muñeca","Cuello"],correct:0,explanation:"'Shoulder' = hombro. Se pronuncia 'shol-der'",speakText:"Shoulder",speakAnswer:"Shoulder"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Turtle",options:["Rana","Serpiente","Tortuga","Lagarto"],correct:2,explanation:"'Turtle' = tortuga. Se pronuncia 'ter-tol'",speakText:"Turtle",speakAnswer:"Turtle"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Ceiling",options:["Piso","Pared","Ventana","Techo"],correct:3,explanation:"'Ceiling' = techo (interior). Se pronuncia 'sii-ling'",speakText:"Ceiling",speakAnswer:"Ceiling"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce esta palabra?",prompt:"Scissors",options:["Pegamento","Tijeras","Regla","Cinta"],correct:1,explanation:"'Scissors' = tijeras. Se pronuncia 'si-sors'",speakText:"Scissors",speakAnswer:"Scissors"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Whale",options:["Tiburón","Delfín","Ballena","Pulpo"],correct:2,explanation:"'Whale' = ballena. Se pronuncia 'ueil'",speakText:"Whale",speakAnswer:"Whale"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Cloud",options:["Sol","Nube","Estrella","Luna"],correct:1,explanation:"'Cloud' = nube. Se pronuncia 'claud'",speakText:"Cloud",speakAnswer:"Cloud"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Sweater",options:["Pantalón","Camisa","Suéter","Falda"],correct:2,explanation:"'Sweater' = suéter. Se pronuncia 'sue-ter'",sweakText:"Sweater",speakAnswer:"Sweater",speakText:"Sweater"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Leaf",options:["Rama","Flor","Raíz","Hoja"],correct:3,explanation:"'Leaf' = hoja (de árbol). El plural es 'leaves'",speakText:"Leaf",speakAnswer:"Leaf"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Brave",options:["Tímido","Valiente","Triste","Cansado"],correct:1,explanation:"'Brave' = valiente. Se pronuncia 'breiv'",speakText:"Brave",speakAnswer:"Brave"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Tongue",options:["Diente","Labio","Lengua","Nariz"],correct:2,explanation:"'Tongue' = lengua. Se pronuncia 'tang'",speakText:"Tongue",speakAnswer:"Tongue"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Homework",options:["Trabajo","Tarea escolar","Casa","Estudio"],correct:1,explanation:"'Homework' = tarea escolar. 'Home' + 'work' = trabajo de casa",speakText:"Homework",speakAnswer:"Homework"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Necklace",options:["Anillo","Pulsera","Collar","Arete"],correct:2,explanation:"'Necklace' = collar. 'Neck' = cuello + 'lace' = encaje",speakText:"Necklace",speakAnswer:"Necklace"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Mailbox",options:["Caja de regalo","Buzón","Mochila","Cajón"],correct:1,explanation:"'Mailbox' = buzón. 'Mail' = correo + 'box' = caja",speakText:"Mailbox",speakAnswer:"Mailbox"},
+  {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Lightning",options:["Trueno","Relámpago","Lluvia","Granizo"],correct:1,explanation:"'Lightning' = relámpago. 'Thunder' es trueno",speakText:"Lightning",speakAnswer:"Lightning"},
+],
+
+conversation: [
+  {category:"💬 Conversación",instruction:"Alguien te pregunta en inglés. ¿Cuál es la mejor respuesta?",prompt:"\"Hi! What's your name?\"",options:["I am 8 years old","My name is Mía","I live in Mexico","I like pizza"],correct:1,explanation:"Cuando alguien pregunta 'What's your name?' responde con 'My name is...'",speakText:"Hi! What's your name?",speakAnswer:"My name is Mía"},
+  {category:"💬 Conversación",instruction:"¿Qué responderías?",prompt:"\"How old are you?\"",options:["I am fine, thanks","I am eight years old","My name is Juan","I like school"],correct:1,explanation:"'How old are you?' = ¿Cuántos años tienes? Se responde 'I am ___ years old'",speakText:"How old are you?",speakAnswer:"I am eight years old"},
+  {category:"💬 Conversación",instruction:"Elige la mejor respuesta:",prompt:"\"How are you today?\"",options:["I am nine","I am fine, thank you!","My name is Ana","I like dogs"],correct:1,explanation:"'How are you?' = ¿Cómo estás? Se responde 'I am fine, thank you'",speakText:"How are you today?",speakAnswer:"I am fine, thank you!"},
+  {category:"💬 Conversación",instruction:"¿Qué dirías?",prompt:"\"What is your favorite color?\"",options:["I am happy","I like blue","I have a dog","I go to school"],correct:1,explanation:"'Favorite color' = color favorito. Responde con 'I like + color'",speakText:"What is your favorite color?",speakAnswer:"I like blue"},
+  {category:"💬 Conversación",instruction:"Elige la respuesta correcta:",prompt:"\"Do you have any pets?\"",options:["Yes, I have a cat","I am ten years old","I like math","My mom is nice"],correct:0,explanation:"'Pets' = mascotas. 'Do you have...?' = ¿Tienes...?",speakText:"Do you have any pets?",speakAnswer:"Yes, I have a cat"},
+  {category:"💬 Conversación",instruction:"¿Qué responderías?",prompt:"\"Where do you live?\"",options:["I am eight","I live in Mexico","I like pizza","I have a brother"],correct:1,explanation:"'Where do you live?' = ¿Dónde vives? Responde con 'I live in...'",speakText:"Where do you live?",speakAnswer:"I live in Mexico"},
+  {category:"💬 Conversación",instruction:"Alguien te dice esto. ¿Qué contestas?",prompt:"\"Thank you very much!\"",options:["Goodbye!","You're welcome!","I'm sorry","How are you?"],correct:1,explanation:"'You're welcome' = de nada. Es la respuesta a 'Thank you'",speakText:"Thank you very much!",speakAnswer:"You're welcome!"},
+  {category:"💬 Conversación",instruction:"¿Cuál es la mejor respuesta?",prompt:"\"What do you want to be when you grow up?\"",options:["I am a student","I want to be a doctor","I go to school","I am eight years old"],correct:1,explanation:"'What do you want to be?' = ¿Qué quieres ser? 'When you grow up' = cuando crezcas",speakText:"What do you want to be when you grow up?",speakAnswer:"I want to be a doctor"},
+  {category:"💬 Conversación",instruction:"¿Qué dirías?",prompt:"\"Can I borrow your pencil?\"",options:["Thank you!","Sorry, I don't know","Sure, here you go!","My pencil is yellow"],correct:2,explanation:"'Can I borrow...?' = ¿Me prestas...? 'Here you go' = aquí tienes",speakText:"Can I borrow your pencil?",speakAnswer:"Sure, here you go!"},
+  {category:"💬 Conversación",instruction:"Elige la mejor respuesta:",prompt:"\"What time is it?\"",options:["It is Monday","It is three o'clock","I have a watch","I like clocks"],correct:1,explanation:"'What time is it?' = ¿Qué hora es? Se responde 'It is ___ o'clock'",speakText:"What time is it?",speakAnswer:"It is three o'clock"},
+  {category:"💬 Conversación",instruction:"¿Qué contestarías?",prompt:"\"What day is today?\"",options:["It is sunny","It is Tuesday","It is two o'clock","It is fun"],correct:1,explanation:"'What day is today?' = ¿Qué día es hoy? Responde con el día de la semana",speakText:"What day is today?",speakAnswer:"It is Tuesday"},
+  {category:"💬 Conversación",instruction:"Alguien te dice:",prompt:"\"Nice to meet you!\"",options:["See you later!","Nice to meet you too!","I am fine","Thank you!"],correct:1,explanation:"'Nice to meet you' = mucho gusto. Se responde 'Nice to meet you too!'",speakText:"Nice to meet you!",speakAnswer:"Nice to meet you too!"},
+  {category:"💬 Conversación",instruction:"¿Qué responderías?",prompt:"\"What's the weather like today?\"",options:["I like Mondays","It's sunny and warm","I have a jacket","I go to school"],correct:1,explanation:"'Weather' = clima. Se responde describiendo si está soleado, lluvioso, etc.",speakText:"What's the weather like today?",speakAnswer:"It's sunny and warm"},
+  {category:"💬 Conversación",instruction:"Elige la mejor respuesta:",prompt:"\"Are you hungry?\"",options:["I am nine","Yes, I want some pizza!","I like school","My bag is blue"],correct:1,explanation:"'Hungry' = hambriento. 'I want some...' = quiero algo de...",speakText:"Are you hungry?",speakAnswer:"Yes, I want some pizza!"},
+  {category:"💬 Conversación",instruction:"¿Qué dirías?",prompt:"\"Happy birthday!\"",options:["You're welcome","I'm sorry","Thank you so much!","See you tomorrow"],correct:2,explanation:"'Happy birthday' = feliz cumpleaños. Responde con 'Thank you!'",speakText:"Happy birthday!",speakAnswer:"Thank you so much!"},
+  {category:"💬 Conversación",instruction:"¿Qué responderías?",prompt:"\"What sport do you like?\"",options:["I like pizza","I like soccer","I am tall","I have a ball"],correct:1,explanation:"'What sport...?' = ¿Qué deporte...? Responde con 'I like + deporte'",speakText:"What sport do you like?",speakAnswer:"I like soccer"},
+  {category:"💬 Conversación",instruction:"¿Cuál es la mejor respuesta?",prompt:"\"Excuse me, where is the bathroom?\"",options:["I don't like baths","It's down the hall","Thank you!","My house is big"],correct:1,explanation:"'Where is the bathroom?' = ¿Dónde está el baño? 'Down the hall' = al fondo del pasillo",speakText:"Excuse me, where is the bathroom?",speakAnswer:"It's down the hall"},
+  {category:"💬 Conversación",instruction:"¿Qué contestarías?",prompt:"\"Do you like ice cream?\"",options:["I have a dog","Yes, I love chocolate ice cream!","I go to school","It is Monday"],correct:1,explanation:"'Do you like...?' = ¿Te gusta...? 'I love' = me encanta",speakText:"Do you like ice cream?",speakAnswer:"Yes, I love chocolate ice cream!"},
+  {category:"💬 Conversación",instruction:"Alguien te dice:",prompt:"\"See you tomorrow!\"",options:["Nice to meet you","You're welcome","Goodbye! See you!","Thank you"],correct:2,explanation:"'See you tomorrow' = nos vemos mañana. Responde con 'Goodbye!' o 'See you!'",speakText:"See you tomorrow!",speakAnswer:"Goodbye! See you!"},
+  {category:"💬 Conversación",instruction:"¿Qué responderías?",prompt:"\"What is your favorite food?\"",options:["I like to run","My favorite food is tacos","I have a sister","I am happy"],correct:1,explanation:"'Favorite food' = comida favorita. Responde con 'My favorite food is...'",speakText:"What is your favorite food?",speakAnswer:"My favorite food is tacos"},
+],
+
+listen: [
+  {category:"🔊 Escuchar",instruction:"Escucha la palabra y elige su significado:",prompt:"(Presiona 🔊 para escuchar)",options:["Manzana","Naranja","Plátano","Uva"],correct:0,explanation:"'Apple' se pronuncia 'a-pol'. Es una fruta muy común en inglés",speakText:"Apple",speakAnswer:"Apple"},
+  {category:"🔊 Escuchar",instruction:"¿Qué palabra escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Elefante","Jirafa","León","Mono"],correct:2,explanation:"'Lion' se pronuncia 'lai-on'. Es el rey de la selva",speakText:"Lion",speakAnswer:"Lion"},
+  {category:"🔊 Escuchar",instruction:"Escucha y elige el significado correcto:",prompt:"(Presiona 🔊 para escuchar)",options:["Puerta","Ventana","Silla","Mesa"],correct:1,explanation:"'Window' se pronuncia 'uin-dou'. Es por donde entra la luz",speakText:"Window",speakAnswer:"Window"},
+  {category:"🔊 Escuchar",instruction:"¿Qué significó lo que escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Feliz","Triste","Enojado","Asustado"],correct:0,explanation:"'Happy' se pronuncia 'ja-pi'. Significa feliz o contento",speakText:"Happy",speakAnswer:"Happy"},
+  {category:"🔊 Escuchar",instruction:"Escucha con atención:",prompt:"(Presiona 🔊 para escuchar)",options:["Zapato","Calcetín","Sombrero","Guante"],correct:2,explanation:"'Hat' se pronuncia 'jat'. Es lo que usamos en la cabeza",speakText:"Hat",speakAnswer:"Hat"},
+  {category:"🔊 Escuchar",instruction:"¿Qué palabra escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Martes","Jueves","Domingo","Miércoles"],correct:2,explanation:"'Sunday' se pronuncia 'san-dei'. Es el día de descanso",speakText:"Sunday",speakAnswer:"Sunday"},
+  {category:"🔊 Escuchar",instruction:"Escucha y elige:",prompt:"(Presiona 🔊 para escuchar)",options:["Lluvia","Nieve","Viento","Sol"],correct:1,explanation:"'Snow' se pronuncia 'snou'. Es agua congelada que cae del cielo",speakText:"Snow",speakAnswer:"Snow"},
+  {category:"🔊 Escuchar",instruction:"¿Qué significa?",prompt:"(Presiona 🔊 para escuchar)",options:["Rápido","Lento","Alto","Bajo"],correct:0,explanation:"'Fast' se pronuncia 'fast'. Es lo opuesto de 'slow' (lento)",speakText:"Fast",speakAnswer:"Fast"},
+  {category:"🔊 Escuchar",instruction:"Escucha con atención:",prompt:"(Presiona 🔊 para escuchar)",options:["Primavera","Verano","Otoño","Invierno"],correct:3,explanation:"'Winter' se pronuncia 'uin-ter'. Es la estación más fría",speakText:"Winter",speakAnswer:"Winter"},
+  {category:"🔊 Escuchar",instruction:"¿Qué escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Queso","Leche","Pan","Mantequilla"],correct:1,explanation:"'Milk' se pronuncia 'milk'. Es la bebida blanca de las vacas",speakText:"Milk",speakAnswer:"Milk"},
+  {category:"🔊 Escuchar",instruction:"Escucha y elige el significado:",prompt:"(Presiona 🔊 para escuchar)",options:["Amigo","Hermano","Vecino","Primo"],correct:0,explanation:"'Friend' se pronuncia 'frend'. Es alguien que te quiere y juega contigo",speakText:"Friend",speakAnswer:"Friend"},
+  {category:"🔊 Escuchar",instruction:"¿Qué significa esta frase?",prompt:"(Presiona 🔊 para escuchar)",options:["Buenos días","Buenas noches","Buenas tardes","Hasta luego"],correct:0,explanation:"'Good morning' = buenos días. Se usa antes del mediodía",speakText:"Good morning",speakAnswer:"Good morning"},
+  {category:"🔊 Escuchar",instruction:"Escucha:",prompt:"(Presiona 🔊 para escuchar)",options:["Dedo","Mano","Brazo","Pierna"],correct:1,explanation:"'Hand' se pronuncia 'jand'. Tenemos dos manos con cinco dedos cada una",speakText:"Hand",speakAnswer:"Hand"},
+  {category:"🔊 Escuchar",instruction:"¿Qué palabra escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Oso","Conejo","Pato","Caballo"],correct:3,explanation:"'Horse' se pronuncia 'jors'. Es un animal grande que podemos montar",speakText:"Horse",speakAnswer:"Horse"},
+  {category:"🔊 Escuchar",instruction:"Escucha y elige:",prompt:"(Presiona 🔊 para escuchar)",options:["Veinte","Treinta","Cuarenta","Cincuenta"],correct:0,explanation:"'Twenty' se pronuncia 'tuen-ti'. Es el número 20",speakText:"Twenty",speakAnswer:"Twenty"},
+  {category:"🔊 Escuchar",instruction:"¿Qué significa?",prompt:"(Presiona 🔊 para escuchar)",options:["Nadar","Saltar","Correr","Bailar"],correct:3,explanation:"'Dance' se pronuncia 'dans'. Es mover el cuerpo al ritmo de la música",speakText:"Dance",speakAnswer:"Dance"},
+  {category:"🔊 Escuchar",instruction:"Escucha esta frase:",prompt:"(Presiona 🔊 para escuchar)",options:["Tengo sed","Tengo hambre","Tengo frío","Tengo sueño"],correct:1,explanation:"'I am hungry' = tengo hambre. Se pronuncia 'ai am jangri'",speakText:"I am hungry",speakAnswer:"I am hungry"},
+  {category:"🔊 Escuchar",instruction:"¿Qué escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Cocina","Dormitorio","Sala","Baño"],correct:1,explanation:"'Bedroom' se pronuncia 'bed-rum'. Es donde dormimos. 'Bed' = cama",speakText:"Bedroom",speakAnswer:"Bedroom"},
+  {category:"🔊 Escuchar",instruction:"Escucha y elige:",prompt:"(Presiona 🔊 para escuchar)",options:["Abuela","Abuelo","Tía","Tío"],correct:0,explanation:"'Grandmother' se pronuncia 'grand-mader'. Es la mamá de tu mamá o papá",speakText:"Grandmother",speakAnswer:"Grandmother"},
+  {category:"🔊 Escuchar",instruction:"¿Qué significa lo que escuchaste?",prompt:"(Presiona 🔊 para escuchar)",options:["Caminar","Hablar","Comer","Dormir"],correct:2,explanation:"'Eat' se pronuncia 'iit'. Es lo que hacemos con la comida",speakText:"Eat",speakAnswer:"Eat"},
+]
+};
+
+// ═══════════════════════════════════════════════
+// IA: LOGIN, ACTIVACIÓN Y LÍMITE
+// ═══════════════════════════════════════════════
 
 function engIniciar() {
   document.getElementById('engModeSelect').style.display = 'block';
   document.getElementById('engExercise').style.display = 'none';
   document.getElementById('engLoading').style.display = 'none';
   document.getElementById('engError').style.display = 'none';
+  // Restore IA status from localStorage
+  const iaData = JSON.parse(localStorage.getItem('engIA') || '{}');
+  const today = new Date().toDateString();
+  if (iaData.date === today) {
+    engIAUsosHoy = iaData.usos || 0;
+  } else {
+    engIAUsosHoy = 0;
+  }
+  if (iaData.activa) {
+    engIAActivada = true;
+    document.getElementById('engIAOff').style.display = 'none';
+    document.getElementById('engIALogin').style.display = 'none';
+    document.getElementById('engIAActive').style.display = 'block';
+    document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
+  }
 }
+
+function engMostrarLoginIA() {
+  document.getElementById('engIAOff').style.display = 'none';
+  document.getElementById('engIALogin').style.display = 'block';
+  document.getElementById('engIAError').textContent = '';
+  document.getElementById('engIAPass').focus();
+}
+
+function engActivarIA() {
+  const pass = document.getElementById('engIAPass').value.trim();
+  if (pass === ENG_IA_PASS) {
+    engIAActivada = true;
+    document.getElementById('engIALogin').style.display = 'none';
+    document.getElementById('engIAActive').style.display = 'block';
+    document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
+    localStorage.setItem('engIA', JSON.stringify({ activa: true, usos: engIAUsosHoy, date: new Date().toDateString() }));
+    sonido('win');
+    decir('🤖 ¡Modo IA activado! Los ejercicios ahora son infinitos ✨');
+    showToast('🤖 ¡IA activada!');
+  } else {
+    document.getElementById('engIAError').textContent = '❌ Contraseña incorrecta';
+    document.getElementById('engIAError').className = 'resultado incorrecto';
+    sonido('error');
+  }
+}
+
+function engDesactivarIA() {
+  engIAActivada = false;
+  document.getElementById('engIAActive').style.display = 'none';
+  document.getElementById('engIAOff').style.display = 'block';
+  localStorage.setItem('engIA', JSON.stringify({ activa: false, usos: engIAUsosHoy, date: new Date().toDateString() }));
+  decir('Modo IA desactivado. Sigues con +200 ejercicios locales 📚');
+}
+
+function engGuardarUsoIA() {
+  engIAUsosHoy++;
+  document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
+  localStorage.setItem('engIA', JSON.stringify({ activa: true, usos: engIAUsosHoy, date: new Date().toDateString() }));
+}
+
+// ═══════════════════════════════════════════════
+// HABLAR (Text-to-Speech)
+// ═══════════════════════════════════════════════
 
 function engHablar(text, lang) {
   if ('speechSynthesis' in window) {
@@ -2809,6 +3013,10 @@ function engHablar(text, lang) {
     speechSynthesis.speak(utter);
   }
 }
+
+// ═══════════════════════════════════════════════
+// SELECCIÓN DE EJERCICIO (LOCAL o IA)
+// ═══════════════════════════════════════════════
 
 async function engPedir(mode) {
   iniciarAudio();
@@ -2826,83 +3034,105 @@ async function engPedir(mode) {
   document.getElementById('engExercise').style.display = 'none';
   document.getElementById('engError').style.display = 'none';
   document.getElementById('engLoading').style.display = 'block';
-  document.getElementById('engLoadingText').textContent =
-    engLoadingMsgs[Math.floor(Math.random() * engLoadingMsgs.length)];
 
-  const promptMap = {
-    translate: `Crea un ejercicio de traducción español→inglés para un niño de 8-9 años (tercer grado).
-Elige una oración corta y cotidiana en español para traducir al inglés.
-Incluye 4 opciones de respuesta en inglés (solo 1 correcta).`,
-
-    complete: `Crea un ejercicio de "completar la oración" en inglés para un niño de 8-9 años.
-Una oración en inglés con un espacio en blanco (_____).
-Incluye 4 opciones para llenar el espacio (solo 1 correcta).`,
-
-    vocabulary: `Crea un ejercicio de vocabulario inglés para un niño de 8-9 años.
-Muestra una palabra en inglés y pregunta qué significa en español.
-Incluye 4 opciones en español (solo 1 correcta). Usa palabras de temas como: animales, comida, colores, familia, escuela, cuerpo, ropa, clima.`,
-
-    conversation: `Crea un ejercicio de conversación en inglés para un niño de 8-9 años.
-Muestra una situación o pregunta en inglés (como "Someone asks you: How are you today?").
-El niño debe elegir la mejor respuesta de 4 opciones en inglés.`,
-
-    listen: `Crea un ejercicio de "escucha" en inglés para un niño de 8-9 años.
-Elige una palabra o frase corta en inglés que el niño escuchará (la leeré con text-to-speech).
-Incluye 4 opciones de lo que podría significar o ser en español (solo 1 correcta).`
-  };
-
-  const systemPrompt = `Eres un profesor de inglés divertido para niños hispanohablantes de tercer grado (8-9 años).
-Genera ejercicios VARIADOS y CREATIVOS. Nunca repitas el mismo ejercicio.
-Usa vocabulario apropiado para su edad: animales, colores, comida, familia, escuela, juguetes, deportes, clima, emociones, partes del cuerpo, ropa, días, meses.
-
-RESPONDE SOLAMENTE con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
-{
-  "category": "emoji + nombre del tipo de ejercicio (ej: 🔄 Traducción)",
-  "instruction": "instrucción clara en español para el niño",
-  "prompt": "la oración, palabra o situación principal del ejercicio",
-  "options": ["opción A", "opción B", "opción C", "opción D"],
-  "correct": 0,
-  "explanation": "explicación breve y amigable de la respuesta correcta, puede incluir tip de pronunciación",
-  "speakText": "texto en inglés para leer en voz alta (la frase principal o palabra)",
-  "speakAnswer": "la respuesta correcta en inglés para leer en voz alta"
+  // Decide: local or IA
+  if (engIAActivada && engIAUsosHoy < ENG_IA_LIMITE_DIARIO) {
+    document.getElementById('engLoadingText').textContent = '🤖 La IA está creando tu ejercicio...';
+    await engPedirIA(mode);
+  } else {
+    document.getElementById('engLoadingText').textContent = '📚 Preparando ejercicio...';
+    // Small delay for effect
+    await new Promise(r => setTimeout(r, 300));
+    engPedirLocal(mode);
+  }
 }
 
-El campo "correct" es el ÍNDICE (0-3) de la opción correcta dentro del array "options".
-Varía la dificultad, a veces fácil, a veces un poco más retador. Sé creativo con los temas.`;
+// ═══════════════════════════════════════════════
+// MODO LOCAL — banco predefinido
+// ═══════════════════════════════════════════════
+
+function engPedirLocal(mode) {
+  const bank = engBank[mode];
+  if (!bank || bank.length === 0) {
+    document.getElementById('engLoading').style.display = 'none';
+    document.getElementById('engError').style.display = 'block';
+    document.getElementById('engErrorText').textContent = 'No hay ejercicios para este modo';
+    return;
+  }
+
+  // Pick a random one, avoiding recent repeats
+  if (!engUsedIndexes[mode]) engUsedIndexes[mode] = [];
+  if (engUsedIndexes[mode].length >= bank.length) {
+    engUsedIndexes[mode] = []; // Reset when all used
+  }
+
+  let idx;
+  do {
+    idx = Math.floor(Math.random() * bank.length);
+  } while (engUsedIndexes[mode].includes(idx));
+  engUsedIndexes[mode].push(idx);
+
+  engCurrentData = { ...bank[idx] };
+
+  // Shuffle options while tracking correct answer
+  const correctOption = engCurrentData.options[engCurrentData.correct];
+  const shuffled = [...engCurrentData.options].sort(() => Math.random() - 0.5);
+  engCurrentData.options = shuffled;
+  engCurrentData.correct = shuffled.indexOf(correctOption);
+
+  engMostrarEjercicio();
+}
+
+// ═══════════════════════════════════════════════
+// MODO IA — API de Anthropic via Netlify Function
+// ═══════════════════════════════════════════════
+
+async function engPedirIA(mode) {
+  const promptMap = {
+    translate: 'Crea un ejercicio de traducción español→inglés para un niño de 8-9 años. Oración corta en español, 4 opciones en inglés.',
+    complete: 'Crea un ejercicio de completar oración en inglés para un niño de 8-9 años. Oración con _____, 4 opciones.',
+    vocabulary: 'Crea un ejercicio de vocabulario inglés para un niño de 8-9 años. Palabra en inglés, 4 opciones en español.',
+    conversation: 'Crea un ejercicio de conversación en inglés para un niño de 8-9 años. Pregunta en inglés, 4 respuestas posibles.',
+    listen: 'Crea un ejercicio de escucha en inglés para un niño de 8-9 años. Palabra/frase en inglés para escuchar, 4 significados en español.'
+  };
+
+  const systemPrompt = `Eres un profesor de inglés divertido para niños hispanohablantes de 8-9 años.
+RESPONDE SOLO con JSON válido (sin markdown, sin backticks):
+{"category":"emoji + tipo","instruction":"instrucción en español","prompt":"ejercicio principal","options":["A","B","C","D"],"correct":0,"explanation":"explicación breve","speakText":"texto inglés para TTS","speakAnswer":"respuesta en inglés para TTS"}
+"correct" es el ÍNDICE (0-3). Sé creativo, varía temas y dificultad.`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/.netlify/functions/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 800,
         system: systemPrompt,
-        messages: [
-          { role: 'user', content: promptMap[mode] + '\n\nRecuerda: responde SOLO con JSON válido, sin texto adicional.' }
-        ]
+        messages: [{ role: 'user', content: promptMap[mode] }]
       })
     });
 
-    if (!response.ok) {
-      throw new Error('API respondió con status ' + response.status);
-    }
+    if (!response.ok) throw new Error('Status ' + response.status);
 
     const data = await response.json();
-    const text = data.content.map(c => c.text || '').join('');
-    const clean = text.replace(/```json|```/g, '').trim();
-    engCurrentData = JSON.parse(clean);
+    if (data.error) throw new Error(data.error.message || data.error);
 
+    const text = data.content.map(c => c.text || '').join('');
+    engCurrentData = JSON.parse(text.replace(/```json|```/g, '').trim());
+    engGuardarUsoIA();
     engMostrarEjercicio();
 
   } catch (err) {
-    console.error('English game error:', err);
-    document.getElementById('engLoading').style.display = 'none';
-    document.getElementById('engError').style.display = 'block';
-    document.getElementById('engErrorText').textContent = 'No se pudo generar el ejercicio. ¿Tienes conexión a internet?';
-    decir('¡Ups! Algo falló. Intenta otra vez 😅');
+    console.warn('IA fallback to local:', err);
+    // Fallback silencioso al banco local
+    engPedirLocal(mode);
+    showToast('📚 Ejercicio del banco local (IA no disponible)');
   }
 }
+
+// ═══════════════════════════════════════════════
+// MOSTRAR Y RESPONDER EJERCICIO
+// ═══════════════════════════════════════════════
 
 function engMostrarEjercicio() {
   const d = engCurrentData;
@@ -2913,7 +3143,6 @@ function engMostrarEjercicio() {
   document.getElementById('engCategory').textContent = d.category || '🇬🇧 English';
   document.getElementById('engInstruction').textContent = d.instruction || '';
 
-  // Prompt box with speak button
   const promptBox = document.getElementById('engPromptBox');
   promptBox.innerHTML = '';
   const promptText = document.createElement('div');
@@ -2927,30 +3156,25 @@ function engMostrarEjercicio() {
     speakBtn.style.marginTop = '10px';
     speakBtn.onclick = (e) => { e.stopPropagation(); engHablar(d.speakText, 'en-US'); };
     promptBox.appendChild(speakBtn);
-
-    // Auto-speak for listen mode
     if (engCurrentMode === 'listen') {
       setTimeout(() => engHablar(d.speakText, 'en-US'), 400);
     }
   }
 
-  // Options
   const area = document.getElementById('engAnswerArea');
   area.innerHTML = '';
   const optionsDiv = document.createElement('div');
   optionsDiv.className = 'eng-options';
-
   const letters = ['A', 'B', 'C', 'D'];
   d.options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'eng-option';
-    btn.textContent = `${letters[i]}) ${opt}`;
+    btn.textContent = letters[i] + ') ' + opt;
     btn.onclick = () => engResponder(i, btn, optionsDiv);
     optionsDiv.appendChild(btn);
   });
   area.appendChild(optionsDiv);
 
-  // Clear result & explanation
   document.getElementById('engResultado').textContent = '';
   document.getElementById('engResultado').className = 'resultado';
   document.getElementById('engExplanation').style.display = 'none';
@@ -2969,7 +3193,6 @@ function engResponder(index, btn, container) {
   const isCorrect = index === correct;
   const resultado = document.getElementById('engResultado');
 
-  // Mark all buttons
   container.querySelectorAll('.eng-option').forEach((b, i) => {
     b.classList.add('disabled');
     if (i === correct) b.classList.add('correct');
@@ -2982,35 +3205,34 @@ function engResponder(index, btn, container) {
     engPuntosTotal += pts;
     document.getElementById('engRacha').textContent = engRacha;
     document.getElementById('engPuntos').textContent = engPuntosTotal;
-    resultado.textContent = `✅ Correct! +${pts} puntos 🌟`;
+    resultado.textContent = '✅ Correct! +' + pts + ' puntos 🌟';
     resultado.className = 'resultado correcto';
     sumarEstrellas(3);
     sonido('correcto');
     if (engRacha % 5 === 0) {
-      showToast(`🔥 English streak: ${engRacha}!`);
+      showToast('🔥 English streak: ' + engRacha + '!');
       lanzarConfetti();
     }
     decir('🎉 Great job! ¡Muy bien!');
   } else {
     engRacha = 0;
     document.getElementById('engRacha').textContent = 0;
-    resultado.textContent = `❌ La respuesta correcta era: ${d.options[correct]}`;
+    resultado.textContent = '❌ La respuesta correcta era: ' + d.options[correct];
     resultado.className = 'resultado incorrecto';
     sonido('error');
-    decir('Don\'t worry! ¡A la próxima lo logras! 💪');
+    decir("Don't worry! ¡A la próxima! 💪");
   }
 
-  // Show explanation
   if (d.explanation) {
     const expl = document.getElementById('engExplanation');
-    expl.innerHTML = `<strong>💡 Tip:</strong> ${d.explanation}`;
+    expl.innerHTML = '<strong>💡 Tip:</strong> ' + d.explanation;
     if (d.speakAnswer) {
-      expl.innerHTML += `<br><button class="eng-speak-btn" style="margin-top:8px;" onclick="engHablar('${d.speakAnswer.replace(/'/g, "\\'")}', 'en-US')">🔊 Escuchar respuesta</button>`;
+      const safeAnswer = (d.speakAnswer || '').replace(/'/g, "\\'");
+      expl.innerHTML += '<br><button class="eng-speak-btn" style="margin-top:8px;" onclick="engHablar(\'' + safeAnswer + '\', \'en-US\')">🔊 Escuchar respuesta</button>';
     }
     expl.style.display = 'block';
   }
 
-  // Speak the correct answer
   if (d.speakAnswer) {
     setTimeout(() => engHablar(d.speakAnswer, 'en-US'), 800);
   }
