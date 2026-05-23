@@ -896,7 +896,1257 @@
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--morado-claro); border-radius: 99px; }
+
+    /* ═══════════ MULTIPLAYER ═══════════ */
+    .mp-hub {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .mp-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(147,51,234,.06), rgba(236,72,153,.06));
+      border-radius: 20px;
+      margin-bottom: 20px;
+      border: 2px solid var(--borde);
+    }
+
+    .mp-status-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #aaa;
+      flex-shrink: 0;
+    }
+
+    .mp-status-dot.online { background: var(--verde); box-shadow: 0 0 8px rgba(52,211,153,.5); animation: pulse-dot 2s infinite; }
+    .mp-status-dot.connecting { background: var(--amarillo); animation: pulse-dot 1s infinite; }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+    }
+
+    .mp-status-text {
+      font-weight: 600;
+      color: var(--morado);
+      font-size: .95rem;
+    }
+
+    .mp-room-code {
+      font-family: 'Baloo 2', monospace;
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 8px;
+      text-align: center;
+      color: var(--morado);
+      background: linear-gradient(135deg, #fae8ff, #ede9fe);
+      border: 3px dashed var(--morado-claro);
+      border-radius: 24px;
+      padding: 20px;
+      margin: 20px 0;
+      position: relative;
+      cursor: pointer;
+      transition: all .2s;
+      user-select: all;
+    }
+
+    .mp-room-code:hover {
+      transform: scale(1.02);
+      border-color: var(--morado);
+    }
+
+    .mp-room-code .copy-hint {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--morado-claro);
+      margin-top: 6px;
+    }
+
+    .mp-modes {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .mp-mode-card {
+      background: white;
+      border: 2px solid var(--borde);
+      border-radius: 20px;
+      padding: 24px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .3s cubic-bezier(.16,1,.3,1);
+    }
+
+    .mp-mode-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 40px var(--sombra);
+      border-color: var(--morado-claro);
+    }
+
+    .mp-mode-card .mode-emoji {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .mp-mode-card h3 {
+      font-family: 'Baloo 2', sans-serif;
+      color: var(--morado);
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .mp-mode-card p {
+      font-size: .85rem;
+      color: var(--morado-claro);
+      line-height: 1.4;
+    }
+
+    .mp-players-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .mp-player-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 2px solid var(--borde);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: .9rem;
+      color: var(--morado);
+      box-shadow: 0 4px 12px var(--sombra);
+    }
+
+    .mp-player-tag .player-avatar {
+      font-size: 1.2rem;
+    }
+
+    .mp-player-tag.is-me {
+      border-color: var(--morado);
+      background: linear-gradient(135deg, #fae8ff, #ede9fe);
+    }
+
+    .mp-player-tag .player-score {
+      background: var(--gradiente-principal);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+    }
+
+    /* Duelo en vivo */
+    .mp-duel-area {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: start;
+      margin: 20px 0;
+    }
+
+    .mp-duel-player {
+      background: white;
+      border: 3px solid var(--borde);
+      border-radius: 24px;
+      padding: 20px;
+      text-align: center;
+      transition: all .3s;
+    }
+
+    .mp-duel-player.active {
+      border-color: var(--verde);
+      box-shadow: 0 0 20px rgba(52,211,153,.2);
+    }
+
+    .mp-duel-player.winner {
+      border-color: var(--amarillo);
+      box-shadow: 0 0 30px rgba(251,191,36,.3);
+      animation: winner-glow 1s ease infinite alternate;
+    }
+
+    @keyframes winner-glow {
+      from { box-shadow: 0 0 20px rgba(251,191,36,.2); }
+      to { box-shadow: 0 0 40px rgba(251,191,36,.4); }
+    }
+
+    .mp-duel-vs {
+      font-family: 'Baloo 2', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--coral);
+      align-self: center;
+      text-shadow: 0 4px 10px rgba(251,113,133,.2);
+    }
+
+    .mp-duel-score {
+      font-family: 'Baloo 2', sans-serif;
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--morado);
+    }
+
+    .mp-duel-name {
+      font-weight: 700;
+      color: var(--morado-claro);
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+
+    .mp-duel-avatar {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+
+    .mp-join-form {
+      display: flex;
+      gap: 10px;
+      max-width: 400px;
+      margin: 16px auto;
+    }
+
+    .mp-join-form input {
+      flex: 1;
+      text-align: center;
+      font-size: 1.3rem;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    /* Scoreboard */
+    .mp-scoreboard {
+      margin: 20px 0;
+    }
+
+    .mp-score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: white;
+      border: 2px solid var(--borde);
+      border-radius: 16px;
+      margin-bottom: 8px;
+      transition: all .2s;
+    }
+
+    .mp-score-row:first-child {
+      border-color: var(--amarillo);
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    }
+
+    .mp-score-rank {
+      font-family: 'Baloo 2', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--morado-claro);
+      min-width: 32px;
+    }
+
+    .mp-score-row:first-child .mp-score-rank { color: var(--amarillo); }
+
+    .mp-score-name {
+      flex: 1;
+      font-weight: 600;
+      color: var(--texto);
+    }
+
+    .mp-score-value {
+      font-family: 'Baloo 2', sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--morado);
+    }
+
+    .mp-countdown {
+      font-family: 'Baloo 2', sans-serif;
+      font-size: 5rem;
+      font-weight: 800;
+      text-align: center;
+      color: var(--morado);
+      animation: countdown-pulse .5s ease-in-out;
+    }
+
+    @keyframes countdown-pulse {
+      0% { transform: scale(1.5); opacity: 0; }
+      50% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(.95); opacity: 1; }
+    }
+
+    .mp-waiting {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .mp-waiting .waiting-emoji {
+      font-size: 60px;
+      animation: mascot-bounce 2s ease-in-out infinite;
+    }
+
+    .mp-waiting h3 {
+      font-family: 'Baloo 2', sans-serif;
+      color: var(--morado);
+      font-size: 1.3rem;
+      margin: 16px 0 8px;
+    }
+
+    .mp-waiting p {
+      color: var(--morado-claro);
+      font-weight: 600;
+    }
+
+    .mp-chat {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 12px;
+      background: rgba(147,51,234,.03);
+      border-radius: 16px;
+      margin-top: 12px;
+      border: 2px solid var(--borde);
+    }
+
+    .mp-chat-msg {
+      font-size: .85rem;
+      padding: 4px 0;
+      color: var(--texto);
+    }
+
+    .mp-chat-msg .chat-name {
+      font-weight: 700;
+      color: var(--morado);
+    }
+
+    .mp-emoji-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .mp-emoji-btn {
+      font-size: 1.4rem;
+      border: 2px solid var(--borde);
+      background: white;
+      border-radius: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .mp-emoji-btn:hover { transform: scale(1.2); border-color: var(--morado-claro); }
+
+    @media (max-width: 640px) {
+      .mp-duel-area { grid-template-columns: 1fr; }
+      .mp-duel-vs { font-size: 1.5rem; }
+      .mp-room-code { font-size: 1.8rem; letter-spacing: 5px; }
+      .mp-modes { grid-template-columns: 1fr; }
+    }
   </style>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">
+// ═══════════════════════════════════════════════
+// MULTIJUGADOR CON PEERJS (WebRTC P2P)
+// ═══════════════════════════════════════════════
+
+const MP_AVATARS = ['🦄','🐱','🐶','🦊','🐸','🐼','🦁','🐰','🦋','🐬','🦉','🐧','🎀','⭐','🌈','🍭'];
+const MP_EMOJIS_CHAT = ['👏','😂','🎉','❤️','🔥','💪','😮','🤩','👍','✨'];
+
+let mpPeer = null;
+let mpConnections = {};
+let mpIsHost = false;
+let mpRoomCode = '';
+let mpMyName = '';
+let mpMyAvatar = '🦄';
+let mpPlayers = {};
+let mpMyId = '';
+let mpGameState = null;
+let mpGameMode = '';
+let mpGameTimer = null;
+
+// Generar código de sala
+function mpGenerarCodigo() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+// Inicializar avatar picker
+function mpInitAvatarPicker() {
+  const picker = document.getElementById('mpAvatarPicker');
+  if (!picker) return;
+  picker.innerHTML = '';
+  MP_AVATARS.forEach(av => {
+    const btn = document.createElement('button');
+    btn.textContent = av;
+    btn.style.cssText = 'font-size:1.8rem; border:3px solid var(--borde); background:white; border-radius:14px; padding:8px 12px; cursor:pointer; transition:all .15s;';
+    btn.onclick = () => {
+      mpMyAvatar = av;
+      picker.querySelectorAll('button').forEach(b => b.style.borderColor = 'var(--borde)');
+      btn.style.borderColor = 'var(--morado)';
+      btn.style.background = 'linear-gradient(135deg, #fae8ff, #ede9fe)';
+    };
+    if (av === mpMyAvatar) {
+      btn.style.borderColor = 'var(--morado)';
+      btn.style.background = 'linear-gradient(135deg, #fae8ff, #ede9fe)';
+    }
+    picker.appendChild(btn);
+  });
+}
+
+// Emoji chat bar
+function mpInitEmojiBar() {
+  const bar = document.getElementById('mpEmojiBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  MP_EMOJIS_CHAT.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className = 'mp-emoji-btn';
+    btn.textContent = em;
+    btn.onclick = () => mpEnviarChat(em);
+    bar.appendChild(btn);
+  });
+}
+
+// === PEERJS CONNECTION ===
+
+function mpCrearPeer(id) {
+  return new Promise((resolve, reject) => {
+    // Use the free PeerJS cloud server
+    const peer = new Peer(id, {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+    peer.on('open', () => resolve(peer));
+    peer.on('error', (err) => {
+      console.warn('PeerJS error:', err.type, err);
+      if (err.type === 'unavailable-id') {
+        reject(new Error('Sala ocupada, intenta otro código'));
+      } else if (err.type === 'peer-unavailable') {
+        reject(new Error('No se encontró esa sala'));
+      } else {
+        reject(err);
+      }
+    });
+    setTimeout(() => reject(new Error('Tiempo agotado conectando')), 15000);
+  });
+}
+
+function mpGetNombre() {
+  const input = document.getElementById('mpNombre');
+  const nombre = (input ? input.value.trim() : '') || ('Jugador' + Math.floor(Math.random()*99));
+  return nombre.substring(0, 15);
+}
+
+async function mpCrearSala() {
+  iniciarAudio();
+  mpMyName = mpGetNombre();
+  mpIsHost = true;
+  mpRoomCode = mpGenerarCodigo();
+  mpMyId = 'host';
+
+  const statusDot = document.getElementById('mpStatusDot');
+  const statusText = document.getElementById('mpStatusText');
+  statusDot.className = 'mp-status-dot connecting';
+  statusText.textContent = 'Creando sala...';
+
+  document.getElementById('mpSetup').style.display = 'none';
+  document.getElementById('mpLobby').style.display = 'block';
+  document.getElementById('mpCodigoDisplay').textContent = mpRoomCode;
+
+  try {
+    mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode);
+
+    mpPlayers = {};
+    mpPlayers['host'] = { name: mpMyName, avatar: mpMyAvatar, score: 0 };
+    mpRenderPlayers();
+
+    statusDot.className = 'mp-status-dot online';
+    statusText.textContent = '¡Sala creada! Comparte el código con tus amigos.';
+    decir(`¡Sala ${mpRoomCode} lista! Comparte el código 🎮`);
+    sonido('win');
+
+    mpPeer.on('connection', (conn) => {
+      mpHandleConnection(conn);
+    });
+
+  } catch (e) {
+    statusDot.className = 'mp-status-dot';
+    statusText.textContent = 'Error: ' + e.message;
+    decir('No se pudo crear la sala. Intenta de nuevo 😢');
+  }
+}
+
+async function mpUnirse() {
+  iniciarAudio();
+  mpMyName = mpGetNombre();
+  mpIsHost = false;
+  mpRoomCode = (document.getElementById('mpCodigoInput').value || '').trim().toUpperCase();
+
+  if (mpRoomCode.length < 3) {
+    decir('Escribe el código de la sala 📝');
+    return;
+  }
+
+  mpMyId = 'p' + Math.floor(Math.random() * 9999);
+
+  const statusDot = document.getElementById('mpStatusDot');
+  const statusText = document.getElementById('mpStatusText');
+  statusDot.className = 'mp-status-dot connecting';
+  statusText.textContent = 'Buscando sala...';
+
+  document.getElementById('mpSetup').style.display = 'none';
+  document.getElementById('mpLobby').style.display = 'block';
+  document.getElementById('mpCodigoDisplay').textContent = mpRoomCode;
+
+  try {
+    mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode + '-' + mpMyId);
+
+    const conn = mpPeer.connect('mia-mp-' + mpRoomCode, { reliable: true });
+
+    conn.on('open', () => {
+      mpConnections['host'] = conn;
+      conn.send({ type: 'join', id: mpMyId, name: mpMyName, avatar: mpMyAvatar });
+
+      statusDot.className = 'mp-status-dot online';
+      statusText.textContent = '¡Conectado a la sala!';
+      decir('¡Entraste a la sala! 🎉');
+      sonido('match');
+    });
+
+    conn.on('data', (data) => mpHandleData(data, 'host'));
+    conn.on('close', () => {
+      statusDot.className = 'mp-status-dot';
+      statusText.textContent = 'Desconectado del host';
+      delete mpConnections['host'];
+    });
+
+  } catch (e) {
+    statusDot.className = 'mp-status-dot';
+    statusText.textContent = 'Error: ' + e.message;
+    decir('No se encontró esa sala 😢');
+  }
+}
+
+function mpHandleConnection(conn) {
+  conn.on('open', () => {
+    conn.on('data', (data) => mpHandleData(data, conn.peer));
+    conn.on('close', () => {
+      // find player id by peer
+      for (const [pid, info] of Object.entries(mpPlayers)) {
+        if (info.peer === conn.peer) {
+          mpAddChat('Sistema', `${info.avatar} ${info.name} se fue`);
+          delete mpPlayers[pid];
+          delete mpConnections[pid];
+          mpRenderPlayers();
+          mpBroadcast({ type: 'playerList', players: mpPlayers });
+          break;
+        }
+      }
+    });
+  });
+}
+
+function mpHandleData(data, fromPeer) {
+  if (!data || !data.type) return;
+
+  switch(data.type) {
+    case 'join':
+      if (mpIsHost) {
+        mpPlayers[data.id] = { name: data.name, avatar: data.avatar, score: 0, peer: fromPeer };
+        // find the connection for this peer
+        const allConns = mpPeer.connections;
+        for (const key of Object.keys(allConns)) {
+          for (const c of allConns[key]) {
+            if (c.peer === fromPeer && c.open) {
+              mpConnections[data.id] = c;
+            }
+          }
+        }
+        mpRenderPlayers();
+        mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+        mpAddChat('Sistema', `${data.avatar} ${data.name} entró a la sala!`);
+        sonido('match');
+        decir(`¡${data.name} entró! 🎉`);
+      }
+      break;
+
+    case 'playerList':
+      if (!mpIsHost) {
+        mpPlayers = data.players;
+        mpRenderPlayers();
+      }
+      break;
+
+    case 'chat':
+      mpAddChat(data.name, data.msg, data.avatar);
+      break;
+
+    case 'gameStart':
+      mpGameMode = data.mode;
+      mpGameState = data.state;
+      mpStartGameUI();
+      break;
+
+    case 'gameUpdate':
+      mpHandleGameUpdate(data);
+      break;
+
+    case 'gameEnd':
+      mpShowResults(data);
+      break;
+
+    case 'answer':
+      if (mpIsHost) {
+        mpHandleAnswer(data);
+      }
+      break;
+  }
+}
+
+function mpStripPlayers() {
+  // remove peer info before sending
+  const clean = {};
+  for (const [k,v] of Object.entries(mpPlayers)) {
+    clean[k] = { name: v.name, avatar: v.avatar, score: v.score };
+  }
+  return clean;
+}
+
+function mpBroadcast(msg) {
+  for (const conn of Object.values(mpConnections)) {
+    try { if (conn.open) conn.send(msg); } catch(e) {}
+  }
+}
+
+function mpSendToHost(msg) {
+  if (mpIsHost) {
+    mpHandleData(msg, 'self');
+  } else if (mpConnections['host'] && mpConnections['host'].open) {
+    mpConnections['host'].send(msg);
+  }
+}
+
+// === UI FUNCTIONS ===
+
+function mpRenderPlayers() {
+  const list = document.getElementById('mpPlayersList');
+  const gameList = document.getElementById('mpGamePlayers');
+  if (!list) return;
+
+  let html = '';
+  for (const [id, p] of Object.entries(mpPlayers)) {
+    const isMe = (mpIsHost && id === 'host') || (!mpIsHost && id === mpMyId);
+    html += `<div class="mp-player-tag ${isMe ? 'is-me' : ''}">
+      <span class="player-avatar">${p.avatar}</span>
+      <span>${p.name}${isMe ? ' (tú)' : ''}</span>
+      <span class="player-score">⭐${p.score || 0}</span>
+    </div>`;
+  }
+  list.innerHTML = html;
+  if (gameList) gameList.innerHTML = html;
+}
+
+function mpAddChat(name, msg, avatar) {
+  const chat = document.getElementById('mpChat');
+  if (!chat) return;
+  const div = document.createElement('div');
+  div.className = 'mp-chat-msg';
+  div.innerHTML = `<span class="chat-name">${avatar || '💬'} ${name}:</span> ${msg}`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function mpEnviarChat(msg) {
+  if (!msg) return;
+  const data = { type: 'chat', name: mpMyName, avatar: mpMyAvatar, msg };
+  if (mpIsHost) {
+    mpAddChat(mpMyName, msg, mpMyAvatar);
+    mpBroadcast(data);
+  } else {
+    mpAddChat(mpMyName, msg, mpMyAvatar);
+    mpSendToHost(data);
+  }
+}
+
+function mpCopiarCodigo() {
+  navigator.clipboard.writeText(mpRoomCode).then(() => {
+    showToast('📋 ¡Código copiado!');
+    decir('¡Código copiado! Compártelo con tus amigos 🎮');
+  }).catch(() => {
+    showToast('📋 Código: ' + mpRoomCode);
+  });
+}
+
+// === GAME LOGIC (HOST AUTHORITATIVE) ===
+
+function mpIniciarJuego(mode) {
+  if (!mpIsHost) {
+    decir('Solo el creador de la sala puede iniciar el juego 👑');
+    return;
+  }
+
+  const playerCount = Object.keys(mpPlayers).length;
+  if (playerCount < 2) {
+    decir('¡Necesitas al menos 2 jugadores! Comparte el código 🔗');
+    return;
+  }
+
+  mpGameMode = mode;
+
+  // Reset scores
+  for (const id of Object.keys(mpPlayers)) {
+    mpPlayers[id].score = 0;
+  }
+
+  let state = {};
+
+  if (mode === 'dueloMath') {
+    state = mpGenerarDueloState();
+  } else if (mode === 'memoriaVs') {
+    state = mpGenerarMemoriaState();
+  } else if (mode === 'palabrasVs') {
+    state = mpGenerarPalabrasState();
+  }
+
+  mpGameState = state;
+  mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+  mpBroadcast({ type: 'gameStart', mode, state });
+  mpStartGameUI();
+}
+
+// --- DUELO MATH ---
+
+function mpGenerarDueloState() {
+  const problems = [];
+  for (let i = 0; i < 15; i++) {
+    problems.push(generarProblema());
+  }
+  return {
+    problems,
+    currentProblem: 0,
+    timeLeft: 60,
+    answers: {} // playerId -> array of {problem, answer, time}
+  };
+}
+
+// --- MEMORIA VS ---
+function mpGenerarMemoriaState() {
+  const pairs = 8;
+  const selected = [...memoryEmojis].sort(() => Math.random() - .5).slice(0, pairs);
+  const cards = [...selected, ...selected].sort(() => Math.random() - .5);
+  return {
+    cards,
+    revealed: new Array(cards.length).fill(false),
+    matched: new Array(cards.length).fill(false),
+    currentTurn: Object.keys(mpPlayers)[0],
+    turnOrder: Object.keys(mpPlayers),
+    turnIndex: 0,
+    flippedThisTurn: [],
+    scores: {}
+  };
+}
+
+// --- PALABRAS VS ---
+function mpGenerarPalabrasState() {
+  const wordsList = [...palabras].sort(() => Math.random() - .5).slice(0, 10);
+  return {
+    words: wordsList,
+    currentWord: 0,
+    scrambled: '',
+    answered: {},
+    timeLeft: 90
+  };
+}
+
+// === GAME UI ===
+
+function mpStartGameUI() {
+  document.getElementById('mpLobby').querySelector('.mp-modes').style.display = 'none';
+  document.getElementById('mpGameArea').style.display = 'block';
+  document.getElementById('mpGameResult').style.display = 'none';
+  document.getElementById('mpGameContent').style.display = 'block';
+  mpRenderPlayers();
+
+  const content = document.getElementById('mpGameContent');
+
+  if (mpGameMode === 'dueloMath') {
+    document.getElementById('mpGameTitle').textContent = '⚡ Duelo Matemático en Vivo';
+    mpRenderDueloMath(content);
+  } else if (mpGameMode === 'memoriaVs') {
+    document.getElementById('mpGameTitle').textContent = '🧠 Memoria VS';
+    mpRenderMemoriaVs(content);
+  } else if (mpGameMode === 'palabrasVs') {
+    document.getElementById('mpGameTitle').textContent = '📚 Palabras Rápidas';
+    mpRenderPalabrasVs(content);
+  }
+
+  // Countdown
+  content.innerHTML = '<div class="mp-countdown" id="mpCountdown">3</div>' + content.innerHTML;
+  const cd = document.getElementById('mpCountdown');
+  const gameInner = content.querySelector('.mp-game-inner');
+  if (gameInner) gameInner.style.display = 'none';
+
+  let count = 3;
+  const countInterval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      cd.textContent = count;
+      cd.style.animation = 'none';
+      void cd.offsetWidth;
+      cd.style.animation = 'countdown-pulse .5s ease-in-out';
+      sonido('comida');
+    } else if (count === 0) {
+      cd.textContent = '¡YA!';
+      cd.style.color = 'var(--verde)';
+      cd.style.animation = 'none';
+      void cd.offsetWidth;
+      cd.style.animation = 'countdown-pulse .5s ease-in-out';
+      sonido('win');
+    } else {
+      clearInterval(countInterval);
+      cd.remove();
+      if (gameInner) gameInner.style.display = 'block';
+      mpStartGameTimer();
+    }
+  }, 800);
+}
+
+function mpStartGameTimer() {
+  clearInterval(mpGameTimer);
+  if (mpGameMode === 'dueloMath') {
+    mpGameState.timeLeft = 60;
+    mpShowDueloProblem();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const bar = document.getElementById('mpDueloTimerFill');
+      if (bar) bar.style.width = (mpGameState.timeLeft / 60 * 100) + '%';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        mpEndGame();
+      }
+    }, 1000);
+  } else if (mpGameMode === 'memoriaVs') {
+    mpShowMemoriaBoard();
+  } else if (mpGameMode === 'palabrasVs') {
+    mpGameState.timeLeft = 90;
+    mpShowPalabra();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const timer = document.getElementById('mpPalabrasTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        mpEndGame();
+      }
+    }, 1000);
+  }
+}
+
+// --- DUELO MATH UI ---
+function mpRenderDueloMath(container) {
+  container.innerHTML += `
+    <div class="mp-game-inner">
+      <div class="math-timer-bar"><div class="math-timer-fill" id="mpDueloTimerFill" style="width:100%"></div></div>
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin:8px 0;">
+        ⏱️ <span id="mpDueloTime">60</span>s
+      </div>
+      <div class="math-problem" id="mpDueloProblem">...</div>
+      <div class="math-options" id="mpDueloOptions"></div>
+      <p class="resultado" id="mpDueloResultado" style="text-align:center;"></p>
+      <div class="math-streak" style="margin-top:12px;">
+        Tu racha: <span id="mpDueloStreak">0</span> 🔥
+      </div>
+    </div>
+  `;
+}
+
+let mpDueloStreak = 0;
+
+function mpShowDueloProblem() {
+  if (!mpGameState || !mpGameState.problems) return;
+  // Generate new problem on the fly if needed
+  if (mpGameState.currentProblem >= mpGameState.problems.length) {
+    mpGameState.problems.push(generarProblema());
+  }
+  const prob = mpGameState.problems[mpGameState.currentProblem];
+  document.getElementById('mpDueloProblem').textContent = prob.text;
+  document.getElementById('mpDueloTime').textContent = mpGameState.timeLeft;
+
+  const opts = new Set([prob.answer]);
+  while (opts.size < 4) {
+    const offset = Math.floor(Math.random() * 20) - 10;
+    if (offset !== 0) opts.add(prob.answer + offset);
+  }
+  const shuffled = [...opts].sort(() => Math.random() - .5);
+  const container = document.getElementById('mpDueloOptions');
+  container.innerHTML = '';
+  shuffled.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'math-option';
+    btn.textContent = n;
+    btn.onclick = () => mpDueloResponder(n);
+    container.appendChild(btn);
+  });
+  document.getElementById('mpDueloResultado').textContent = '';
+}
+
+function mpDueloResponder(answer) {
+  const prob = mpGameState.problems[mpGameState.currentProblem];
+  const correct = (answer === prob.answer);
+  const res = document.getElementById('mpDueloResultado');
+
+  if (correct) {
+    mpDueloStreak++;
+    const points = 10 + mpDueloStreak * 2;
+    document.getElementById('mpDueloStreak').textContent = mpDueloStreak;
+    res.textContent = `✅ ¡+${points} puntos!`;
+    res.className = 'resultado correcto';
+    sonido('comida');
+    mpSendToHost({ type: 'answer', mode: 'dueloMath', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points });
+    if (mpIsHost) {
+      mpPlayers['host'].score += points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+  } else {
+    mpDueloStreak = 0;
+    document.getElementById('mpDueloStreak').textContent = 0;
+    res.textContent = `❌ Era ${prob.answer}`;
+    res.className = 'resultado incorrecto';
+    sonido('error');
+  }
+
+  mpGameState.currentProblem++;
+  setTimeout(mpShowDueloProblem, correct ? 300 : 600);
+}
+
+// --- MEMORIA VS UI ---
+function mpRenderMemoriaVs(container) {
+  container.innerHTML += `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado); margin-bottom:12px;">
+        Turno de: <span id="mpMemTurnName">...</span> <span id="mpMemTurnAvatar"></span>
+      </div>
+      <div class="memory-grid" id="mpMemGrid" style="max-width:420px; margin:0 auto;"></div>
+      <p class="resultado" id="mpMemResultado" style="text-align:center; margin-top:12px;"></p>
+    </div>
+  `;
+}
+
+function mpShowMemoriaBoard() {
+  if (!mpGameState) return;
+  const grid = document.getElementById('mpMemGrid');
+  if (!grid) return;
+
+  const isMyTurn = mpGameState.currentTurn === (mpIsHost ? 'host' : mpMyId);
+  const turnPlayer = mpPlayers[mpGameState.currentTurn];
+  const turnName = document.getElementById('mpMemTurnName');
+  const turnAvatar = document.getElementById('mpMemTurnAvatar');
+  if (turnName) turnName.textContent = turnPlayer ? turnPlayer.name : '?';
+  if (turnAvatar) turnAvatar.textContent = turnPlayer ? turnPlayer.avatar : '';
+
+  grid.innerHTML = '';
+  mpGameState.cards.forEach((emoji, i) => {
+    const cell = document.createElement('div');
+    const isRevealed = mpGameState.revealed[i] || mpGameState.matched[i];
+    cell.className = 'memory-cell' + (isRevealed ? '' : ' hidden-card') + (mpGameState.matched[i] ? ' matched' : '');
+    if (isRevealed) cell.textContent = emoji;
+    if (isMyTurn && !mpGameState.matched[i] && !mpGameState.revealed[i]) {
+      cell.onclick = () => mpMemFlip(i);
+    }
+    grid.appendChild(cell);
+  });
+
+  // Check if done
+  if (mpGameState.matched.every(m => m)) {
+    setTimeout(mpEndGame, 500);
+  }
+}
+
+function mpMemFlip(index) {
+  if (mpGameState.flippedThisTurn.length >= 2) return;
+  if (mpGameState.revealed[index] || mpGameState.matched[index]) return;
+
+  mpGameState.revealed[index] = true;
+  mpGameState.flippedThisTurn.push(index);
+  sonido('comida');
+
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'flip', index, state: mpCleanMemState() });
+    mpShowMemoriaBoard();
+
+    if (mpGameState.flippedThisTurn.length === 2) {
+      setTimeout(() => mpMemCheckPair(), 800);
+    }
+  } else {
+    mpSendToHost({ type: 'answer', mode: 'memoriaVs', playerId: mpMyId, action: 'flip', index });
+  }
+}
+
+function mpCleanMemState() {
+  return {
+    cards: mpGameState.cards,
+    revealed: [...mpGameState.revealed],
+    matched: [...mpGameState.matched],
+    currentTurn: mpGameState.currentTurn,
+    turnOrder: mpGameState.turnOrder,
+    turnIndex: mpGameState.turnIndex,
+    flippedThisTurn: [...mpGameState.flippedThisTurn],
+    scores: mpGameState.scores || {}
+  };
+}
+
+function mpMemCheckPair() {
+  const [a, b] = mpGameState.flippedThisTurn;
+  const match = mpGameState.cards[a] === mpGameState.cards[b];
+
+  if (match) {
+    mpGameState.matched[a] = true;
+    mpGameState.matched[b] = true;
+    const turner = mpGameState.currentTurn;
+    if (!mpGameState.scores) mpGameState.scores = {};
+    mpGameState.scores[turner] = (mpGameState.scores[turner] || 0) + 1;
+    if (mpPlayers[turner]) mpPlayers[turner].score = (mpPlayers[turner].score || 0) + 10;
+    sonido('match');
+  } else {
+    mpGameState.revealed[a] = false;
+    mpGameState.revealed[b] = false;
+    // Next turn
+    mpGameState.turnIndex = (mpGameState.turnIndex + 1) % mpGameState.turnOrder.length;
+    mpGameState.currentTurn = mpGameState.turnOrder[mpGameState.turnIndex];
+  }
+  mpGameState.flippedThisTurn = [];
+
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'checkPair', state: mpCleanMemState() });
+    mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    mpRenderPlayers();
+    mpShowMemoriaBoard();
+  }
+}
+
+// --- PALABRAS VS UI ---
+function mpRenderPalabrasVs(container) {
+  container.innerHTML += `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpPalabrasTimer">90</span>s
+      </div>
+      <div class="typing-display" id="mpPalabraDisplay" style="font-size:2.2rem; letter-spacing:8px;"></div>
+      <input type="text" id="mpPalabraInput" placeholder="Escribe la palabra..." style="text-align:center; font-size:1.15rem;" />
+      <div style="text-align:center; margin-top:12px;">
+        <button class="btn btn-primary" onclick="mpPalabraCheck()">✨ Descubrir</button>
+      </div>
+      <p class="resultado" id="mpPalabraResultado" style="text-align:center;"></p>
+    </div>
+  `;
+}
+
+function mpShowPalabra() {
+  if (!mpGameState || mpGameState.currentWord >= mpGameState.words.length) {
+    mpEndGame();
+    return;
+  }
+  const word = mpGameState.words[mpGameState.currentWord];
+  let scrambled = word.split('').sort(() => Math.random() - .5).join('');
+  while (scrambled === word) scrambled = word.split('').sort(() => Math.random() - .5).join('');
+  mpGameState.scrambled = scrambled;
+
+  const display = document.getElementById('mpPalabraDisplay');
+  if (display) display.textContent = scrambled.toUpperCase();
+  const input = document.getElementById('mpPalabraInput');
+  if (input) { input.value = ''; input.focus(); }
+  document.getElementById('mpPalabraResultado').textContent = '';
+
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'palabrasVs', action: 'newWord', scrambled: scrambled.toUpperCase(), wordIndex: mpGameState.currentWord });
+  }
+}
+
+function mpPalabraCheck() {
+  const input = document.getElementById('mpPalabraInput');
+  if (!input) return;
+  const resp = input.value.trim().toLowerCase();
+  const word = mpGameState.words[mpGameState.currentWord];
+
+  if (resp === word) {
+    const points = 15;
+    sonido('correcto');
+    document.getElementById('mpPalabraResultado').textContent = `✅ ¡Correcto! +${points}`;
+    document.getElementById('mpPalabraResultado').className = 'resultado correcto';
+
+    mpSendToHost({ type: 'answer', mode: 'palabrasVs', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points, wordIndex: mpGameState.currentWord });
+
+    if (mpIsHost) {
+      mpPlayers['host'].score += points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      mpGameState.currentWord++;
+      setTimeout(mpShowPalabra, 500);
+    }
+  } else {
+    sonido('error');
+    document.getElementById('mpPalabraResultado').textContent = '❌ Sigue intentando...';
+    document.getElementById('mpPalabraResultado').className = 'resultado incorrecto';
+  }
+}
+
+// Handle enter in palabras input
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.getElementById('mpPalabraInput') === document.activeElement) {
+    mpPalabraCheck();
+  }
+});
+
+// === HOST HANDLES ANSWERS FROM CLIENTS ===
+function mpHandleAnswer(data) {
+  if (!mpIsHost) return;
+
+  if (data.mode === 'dueloMath' && data.correct) {
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score += data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+  }
+  else if (data.mode === 'memoriaVs' && data.action === 'flip') {
+    if (mpGameState.currentTurn === data.playerId) {
+      mpGameState.revealed[data.index] = true;
+      mpGameState.flippedThisTurn.push(data.index);
+      mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'flip', index: data.index, state: mpCleanMemState() });
+      mpShowMemoriaBoard();
+      if (mpGameState.flippedThisTurn.length === 2) {
+        setTimeout(() => mpMemCheckPair(), 800);
+      }
+    }
+  }
+  else if (data.mode === 'palabrasVs' && data.correct) {
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score += data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      if (data.wordIndex === mpGameState.currentWord) {
+        mpGameState.currentWord++;
+        setTimeout(mpShowPalabra, 500);
+      }
+    }
+  }
+}
+
+// === HANDLE GAME UPDATES ON CLIENTS ===
+function mpHandleGameUpdate(data) {
+  if (data.mode === 'memoriaVs') {
+    if (data.state) {
+      mpGameState = data.state;
+    }
+    if (data.action === 'flip') {
+      sonido('comida');
+    }
+    mpShowMemoriaBoard();
+  }
+  else if (data.mode === 'palabrasVs') {
+    if (data.action === 'newWord') {
+      mpGameState.currentWord = data.wordIndex;
+      const display = document.getElementById('mpPalabraDisplay');
+      if (display) display.textContent = data.scrambled;
+      const input = document.getElementById('mpPalabraInput');
+      if (input) { input.value = ''; input.focus(); }
+      document.getElementById('mpPalabraResultado').textContent = '';
+    }
+  }
+}
+
+// === END GAME ===
+function mpEndGame() {
+  clearInterval(mpGameTimer);
+  sonido('win');
+  lanzarConfetti();
+
+  // Sort players by score
+  const sorted = Object.entries(mpPlayers).sort((a,b) => (b[1].score||0) - (a[1].score||0));
+  const winner = sorted[0];
+
+  const results = {
+    type: 'gameEnd',
+    winner: winner ? { name: winner[1].name, avatar: winner[1].avatar, score: winner[1].score } : null,
+    players: mpStripPlayers()
+  };
+
+  if (mpIsHost) {
+    mpBroadcast(results);
+  }
+  mpShowResults(results);
+}
+
+function mpShowResults(data) {
+  clearInterval(mpGameTimer);
+  document.getElementById('mpGameContent').style.display = 'none';
+  document.getElementById('mpGameResult').style.display = 'block';
+
+  if (data.players) {
+    mpPlayers = data.players;
+    mpRenderPlayers();
+  }
+
+  const myId = mpIsHost ? 'host' : mpMyId;
+  const sorted = Object.entries(data.players || mpPlayers).sort((a,b) => (b[1].score||0) - (a[1].score||0));
+  const iWon = sorted.length > 0 && sorted[0][0] === myId;
+
+  document.getElementById('mpResultEmoji').textContent = iWon ? '🏆' : '⭐';
+  document.getElementById('mpResultTitle').textContent = iWon ? '🎉 ¡Ganaste!' : `🎉 ¡${data.winner?.avatar || '🏆'} ${data.winner?.name || 'Empate'} gana!`;
+  document.getElementById('mpResultText').textContent = iWon ? '¡Eres increíble! +10 estrellas' : '¡Buen intento! +3 estrellas por participar';
+
+  sumarEstrellas(iWon ? 10 : 3);
+  lanzarConfetti();
+
+  // Scoreboard
+  const sb = document.getElementById('mpFinalScoreboard');
+  sb.innerHTML = '';
+  sorted.forEach(([id, p], i) => {
+    const medals = ['🥇','🥈','🥉'];
+    sb.innerHTML += `
+      <div class="mp-score-row">
+        <span class="mp-score-rank">${medals[i] || (i+1)}</span>
+        <span style="font-size:1.3rem;">${p.avatar}</span>
+        <span class="mp-score-name">${p.name}</span>
+        <span class="mp-score-value">⭐ ${p.score || 0}</span>
+      </div>`;
+  });
+
+  sonido('win');
+}
+
+function mpVolverLobby() {
+  clearInterval(mpGameTimer);
+  document.getElementById('mpGameArea').style.display = 'none';
+  document.getElementById('mpGameResult').style.display = 'none';
+  document.getElementById('mpGameContent').style.display = 'block';
+  const modes = document.getElementById('mpLobby').querySelector('.mp-modes');
+  if (modes) modes.style.display = 'grid';
+  mpDueloStreak = 0;
+}
+
+// === INIT MULTIPLAYER UI ===
+mpInitAvatarPicker();
+mpInitEmojiBar();
+
+</script>
 </head>
 <body>
 
@@ -978,6 +2228,15 @@
           <div class="difficulty">🌈 Arte libre</div>
           <p>Dibuja lo que imagines con colores mágicos. ¡Tu lienzo, tus reglas!</p>
           <button class="btn btn-warm">Dibujar</button>
+        </article>
+
+
+        <article class="world-card" onclick="mostrarPantalla('multiplayer')">
+          <div class="world-icon">🌐</div>
+          <h2>Arena Multijugador</h2>
+          <div class="difficulty">⚡ En línea</div>
+          <p>¡Juega con tus amigos en tiempo real! Crea una sala, comparte el código y compitan.</p>
+          <button class="btn btn-primary">¡Jugar Online!</button>
         </article>
 
         <article class="world-card" onclick="mostrarPreguntaRapida()">
@@ -1121,6 +2380,106 @@
         <canvas id="drawCanvas" width="600" height="450"></canvas>
       </div>
     </section>
+
+
+    <!-- ══════════ MULTIJUGADOR HUB ══════════ -->
+    <section id="multiplayer" class="pantalla">
+      <div class="back-row">
+        <button class="btn btn-ghost btn-sm" onclick="mostrarPantalla('inicio')">← Volver</button>
+      </div>
+      <div class="mp-hub">
+        <div class="card">
+          <h2>🌐 Arena Multijugador</h2>
+          <p style="color:var(--morado-claro); margin-bottom: 16px;">¡Juega con tus amigos en tiempo real! Crea una sala o únete con un código.</p>
+
+          <div id="mpSetup">
+            <div style="text-align:center; margin-bottom: 20px;">
+              <label style="font-weight:700; color:var(--morado); display:block; margin-bottom:8px;">Tu nombre mágico:</label>
+              <input type="text" id="mpNombre" placeholder="Ej: Mía ✨" maxlength="15" style="max-width:280px; text-align:center; font-size:1.1rem;" />
+            </div>
+            <div style="text-align:center; margin-bottom: 20px;">
+              <label style="font-weight:700; color:var(--morado); display:block; margin-bottom:8px;">Elige tu avatar:</label>
+              <div id="mpAvatarPicker" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+              </div>
+            </div>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+              <button class="btn btn-primary btn-lg" onclick="mpCrearSala()">🏠 Crear Sala</button>
+              <button class="btn btn-cool btn-lg" onclick="document.getElementById('mpJoinArea').style.display='block'">🔗 Unirse</button>
+            </div>
+            <div id="mpJoinArea" style="display:none; margin-top:20px;">
+              <div class="mp-join-form">
+                <input type="text" id="mpCodigoInput" placeholder="CÓDIGO" maxlength="6" />
+                <button class="btn btn-warm" onclick="mpUnirse()">Entrar</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="mpLobby" style="display:none;">
+            <div class="mp-status-bar">
+              <div class="mp-status-dot" id="mpStatusDot"></div>
+              <span class="mp-status-text" id="mpStatusText">Conectando...</span>
+            </div>
+
+            <div class="mp-room-code" id="mpRoomDisplay" onclick="mpCopiarCodigo()">
+              <span id="mpCodigoDisplay">----</span>
+              <span class="copy-hint">📋 Toca para copiar y compartir con amigos</span>
+            </div>
+
+            <h3 style="font-family:'Baloo 2',sans-serif; color:var(--morado); margin-bottom: 8px;">👥 Jugadores conectados:</h3>
+            <div class="mp-players-list" id="mpPlayersList"></div>
+
+            <h3 style="font-family:'Baloo 2',sans-serif; color:var(--morado); margin: 16px 0 8px;">🎮 Elige un juego:</h3>
+            <div class="mp-modes">
+              <div class="mp-mode-card" onclick="mpIniciarJuego('dueloMath')">
+                <span class="mode-emoji">⚡</span>
+                <h3>Duelo Matemático</h3>
+                <p>¿Quién resuelve más rápido?</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('memoriaVs')">
+                <span class="mode-emoji">🧠</span>
+                <h3>Memoria VS</h3>
+                <p>Competencia de pares</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('palabrasVs')">
+                <span class="mode-emoji">📚</span>
+                <h3>Palabras Rápidas</h3>
+                <p>Descifra antes que tu rival</p>
+              </div>
+            </div>
+
+            <div class="mp-chat" id="mpChat"></div>
+            <div class="mp-emoji-bar" id="mpEmojiBar"></div>
+          </div>
+        </div>
+
+        <!-- Área de juego multijugador -->
+        <div id="mpGameArea" style="display:none; margin-top: 20px;">
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h2 id="mpGameTitle">🎮 Juego</h2>
+              <button class="btn btn-ghost btn-sm" onclick="mpVolverLobby()">🚪 Salir</button>
+            </div>
+
+            <!-- Scoreboard superior -->
+            <div class="mp-players-list" id="mpGamePlayers" style="margin-bottom:16px;"></div>
+
+            <!-- Contenido del juego -->
+            <div id="mpGameContent"></div>
+
+            <!-- Resultado final -->
+            <div id="mpGameResult" style="display:none; text-align:center; padding:20px;">
+              <div style="font-size:60px; margin-bottom:10px;" id="mpResultEmoji">🏆</div>
+              <h2 id="mpResultTitle" style="font-family:'Baloo 2',sans-serif; color:var(--morado); font-size:1.8rem;">¡Juego terminado!</h2>
+              <p id="mpResultText" style="color:var(--morado-claro); font-weight:600; font-size:1.1rem; margin:10px 0;"></p>
+              <div class="mp-scoreboard" id="mpFinalScoreboard"></div>
+              <button class="btn btn-primary btn-lg" onclick="mpVolverLobby()" style="margin-top:16px;">🔄 Jugar otra vez</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ DUELO MATH MULTIJUGADOR (dentro de mpGameContent) ══════════ -->
 
   </main>
 
@@ -2029,6 +3388,7 @@ document.addEventListener('click', (e) => {
     setTimeout(() => spark.remove(), 1500);
   }
 });
+
 </script>
 </body>
 </html>
