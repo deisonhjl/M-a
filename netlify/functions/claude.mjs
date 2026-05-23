@@ -1,39 +1,16 @@
-// Netlify Function — proxy seguro para la API de Anthropic
-// La API key se lee de una variable de entorno (nunca queda en el código)
-
-const rateLimitMap = new Map();
-
-export default async (req) => {
+export default async (req, context) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método no permitido' }), {
       status: 405, headers: { 'Content-Type': 'application/json' }
     });
   }
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const apiKey = Netlify.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'API key no configurada' }), {
+    return new Response(JSON.stringify({ error: 'API key no configurada en el servidor' }), {
       status: 500, headers: { 'Content-Type': 'application/json' }
     });
   }
-
-  // Rate limit básico por IP (50 requests por hora)
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const now = Date.now();
-  const windowMs = 60 * 60 * 1000; // 1 hora
-  const maxRequests = 50;
-
-  if (!rateLimitMap.has(ip)) {
-    rateLimitMap.set(ip, []);
-  }
-  const timestamps = rateLimitMap.get(ip).filter(t => now - t < windowMs);
-  if (timestamps.length >= maxRequests) {
-    return new Response(JSON.stringify({ error: 'Demasiadas solicitudes. Intenta en un rato.' }), {
-      status: 429, headers: { 'Content-Type': 'application/json' }
-    });
-  }
-  timestamps.push(now);
-  rateLimitMap.set(ip, timestamps);
 
   try {
     const body = await req.json();
