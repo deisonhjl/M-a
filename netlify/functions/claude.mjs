@@ -1,3 +1,5 @@
+// Netlify Edge Function — proxy seguro para la API de Anthropic
+
 export default async (req, context) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método no permitido' }), {
