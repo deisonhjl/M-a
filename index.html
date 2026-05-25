@@ -1465,8 +1465,34 @@
     <div class="nav-actions">
       <button class="btn btn-ghost btn-sm" onclick="mostrarPantalla('inicio')">🏠 Inicio</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleMusica()" id="btnMusica">🎵 Música</button>
+      <button class="btn btn-ghost btn-sm" onclick="mostrarLoginIA()" id="btnIA" style="font-size:.85rem;">🤖 IA</button>
     </div>
   </nav>
+
+  <!-- IA Login Modal -->
+  <div id="iaModal" onclick="if(event.target===this) cerrarModalIA();" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4); z-index:9999; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:380px; margin:20px; text-align:center;">
+      <h3 style="font-family:'Baloo 2',sans-serif; color:var(--morado); margin-bottom:12px;">🤖 Modo IA</h3>
+      <p style="font-size:.9rem; color:var(--morado-claro); margin-bottom:14px;">Activa ejercicios infinitos generados por IA en todos los juegos. Máximo 30 por juego al día.</p>
+      <div id="iaLoginForm">
+        <input type="password" id="iaPassInput" placeholder="Contraseña del profesor..." style="width:100%; text-align:center; font-size:1.1rem; margin-bottom:10px;" onkeydown="if(event.key==='Enter') activarIA();" />
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button class="btn btn-primary" onclick="activarIA()">🔓 Activar</button>
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalIA()">Cancelar</button>
+        </div>
+        <p class="resultado" id="iaLoginError" style="text-align:center; font-size:.85rem; margin-top:8px;"></p>
+      </div>
+      <div id="iaActiveInfo" style="display:none;">
+        <p style="color:var(--verde); font-weight:700; font-size:1.1rem; margin-bottom:10px;">✅ IA activada en todos los juegos</p>
+        <p style="font-size:.85rem; color:var(--morado-claro); margin-bottom:10px;">Los juegos generan ejercicios con inteligencia artificial.</p>
+        <div id="iaUsageInfo" style="font-size:.82rem; color:var(--morado); background:rgba(147,51,234,.05); border-radius:12px; padding:10px; margin-bottom:14px; text-align:left;"></div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button class="btn btn-warm btn-sm" onclick="desactivarIA()">Desactivar IA</button>
+          <button class="btn btn-ghost btn-sm" onclick="cerrarModalIA()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- HERO -->
   <header class="hero">
@@ -1526,7 +1552,7 @@
         </article>
 
         <article class="world-card" onclick="mostrarPantalla('ingles'); engIniciar();">
-          <div class="world-icon">🇬🇧</div>
+          <div class="world-icon">🔤</div>
           <h2>English Adventure</h2>
           <div class="difficulty">⭐ +200 ejercicios + 🤖 IA</div>
           <p>¡Aprende inglés con cientos de ejercicios! Traducción, vocabulario, conversación y más. Modo IA opcional.</p>
@@ -1576,7 +1602,7 @@
               <div class="snake-stat-label">Meta 🍎</div>
             </div>
           </div>
-          <p id="snakeMensaje" class="resultado" style="text-align:center; margin: 10px 0;">Presiona Iniciar y usa flechas o botones.</p>
+          <p id="snakeMensaje" class="resultado" style="text-align:center; margin: 10px 0;">Presiona Iniciar. Usa flechas, botones o desliza el dedo.</p>
           <div class="snake-actions">
             <button class="btn btn-primary btn-sm" onclick="arrancarSnake()">▶ Iniciar</button>
             <button class="btn btn-cool btn-sm" onclick="pausarSnake()">⏸ Pausar</button>
@@ -1584,11 +1610,11 @@
           </div>
           <div class="controles">
             <button class="tecla vacio"></button>
-            <button class="tecla" onclick="cambiarDireccion('up')">⬆️</button>
+            <button class="tecla" ontouchstart="event.preventDefault(); cambiarDireccion('up')" onclick="cambiarDireccion('up')">⬆️</button>
             <button class="tecla vacio"></button>
-            <button class="tecla" onclick="cambiarDireccion('left')">⬅️</button>
-            <button class="tecla" onclick="cambiarDireccion('down')">⬇️</button>
-            <button class="tecla" onclick="cambiarDireccion('right')">➡️</button>
+            <button class="tecla" ontouchstart="event.preventDefault(); cambiarDireccion('left')" onclick="cambiarDireccion('left')">⬅️</button>
+            <button class="tecla" ontouchstart="event.preventDefault(); cambiarDireccion('down')" onclick="cambiarDireccion('down')">⬇️</button>
+            <button class="tecla" ontouchstart="event.preventDefault(); cambiarDireccion('right')" onclick="cambiarDireccion('right')">➡️</button>
           </div>
         </aside>
       </div>
@@ -1659,28 +1685,67 @@
       <div class="back-row">
         <button class="btn btn-ghost btn-sm" onclick="mostrarPantalla('inicio')">← Volver</button>
       </div>
-      <div class="card" style="max-width: 660px; margin: 0 auto;">
+      <div class="card" style="max-width: 720px; margin: 0 auto;">
         <h2>🎨 Taller Creativo</h2>
-        <div class="draw-toolbar" id="drawToolbar">
-          <button class="color-btn active" style="background:#9333ea;" data-color="#9333ea"></button>
-          <button class="color-btn" style="background:#ec4899;" data-color="#ec4899"></button>
-          <button class="color-btn" style="background:#f97316;" data-color="#f97316"></button>
-          <button class="color-btn" style="background:#fbbf24;" data-color="#fbbf24"></button>
-          <button class="color-btn" style="background:#34d399;" data-color="#34d399"></button>
-          <button class="color-btn" style="background:#38bdf8;" data-color="#38bdf8"></button>
-          <button class="color-btn" style="background:#1e1b4b;" data-color="#1e1b4b"></button>
-          <button class="color-btn" style="background:#ffffff; border: 2px solid #ccc;" data-color="#ffffff"></button>
+
+        <!-- Paleta de colores expandida -->
+        <div class="draw-palette" style="margin-bottom:10px;">
+          <div class="draw-toolbar" id="drawToolbar" style="flex-wrap:wrap;">
+            <button class="color-btn active" style="background:#9333ea;" data-color="#9333ea"></button>
+            <button class="color-btn" style="background:#7c3aed;" data-color="#7c3aed"></button>
+            <button class="color-btn" style="background:#ec4899;" data-color="#ec4899"></button>
+            <button class="color-btn" style="background:#f43f5e;" data-color="#f43f5e"></button>
+            <button class="color-btn" style="background:#ef4444;" data-color="#ef4444"></button>
+            <button class="color-btn" style="background:#f97316;" data-color="#f97316"></button>
+            <button class="color-btn" style="background:#f59e0b;" data-color="#f59e0b"></button>
+            <button class="color-btn" style="background:#fbbf24;" data-color="#fbbf24"></button>
+            <button class="color-btn" style="background:#84cc16;" data-color="#84cc16"></button>
+            <button class="color-btn" style="background:#22c55e;" data-color="#22c55e"></button>
+            <button class="color-btn" style="background:#34d399;" data-color="#34d399"></button>
+            <button class="color-btn" style="background:#14b8a6;" data-color="#14b8a6"></button>
+            <button class="color-btn" style="background:#06b6d4;" data-color="#06b6d4"></button>
+            <button class="color-btn" style="background:#38bdf8;" data-color="#38bdf8"></button>
+            <button class="color-btn" style="background:#6366f1;" data-color="#6366f1"></button>
+            <button class="color-btn" style="background:#a855f7;" data-color="#a855f7"></button>
+            <button class="color-btn" style="background:#d946ef;" data-color="#d946ef"></button>
+            <button class="color-btn" style="background:#1e1b4b;" data-color="#1e1b4b"></button>
+            <button class="color-btn" style="background:#6b7280;" data-color="#6b7280"></button>
+            <button class="color-btn" style="background:#9ca3af;" data-color="#9ca3af"></button>
+            <button class="color-btn" style="background:#fce7f3;" data-color="#fce7f3"></button>
+            <button class="color-btn" style="background:#ffffff; border:2px solid #ccc;" data-color="#ffffff"></button>
+            <input type="color" id="customColor" value="#9333ea" title="Color personalizado" style="width:36px; height:36px; border:none; border-radius:50%; cursor:pointer; padding:0;" onchange="setCustomColor(this.value)" />
+          </div>
+        </div>
+
+        <!-- Herramientas -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
           <select id="brushSize" style="padding:8px 12px; border-radius:12px; border:2px solid var(--borde); font-family:'Fredoka',sans-serif; font-size:.9rem;">
-            <option value="3">Fino</option>
+            <option value="2">Muy fino</option>
+            <option value="4">Fino</option>
             <option value="8" selected>Normal</option>
             <option value="16">Grueso</option>
             <option value="30">Mega</option>
+            <option value="50">Ultra</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="toggleEraser()">🧽 Borrador</button>
+          <select id="brushTool" style="padding:8px 12px; border-radius:12px; border:2px solid var(--borde); font-family:'Fredoka',sans-serif; font-size:.9rem;" onchange="setDrawTool(this.value)">
+            <option value="pen">✏️ Lápiz</option>
+            <option value="marker">🖊️ Marcador</option>
+            <option value="spray">💨 Spray</option>
+            <option value="rainbow">🌈 Arcoíris</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="toggleEraser()" id="btnEraser">🧽 Borrador</button>
+          <button class="btn btn-ghost btn-sm" onclick="undoCanvas()">↩️ Deshacer</button>
           <button class="btn btn-ghost btn-sm" onclick="clearCanvas()">🗑️ Limpiar</button>
           <button class="btn btn-forest btn-sm" onclick="downloadDrawing()">💾 Guardar</button>
         </div>
-        <canvas id="drawCanvas" width="600" height="450"></canvas>
+
+        <!-- Emojis insertables -->
+        <div style="margin-bottom:10px;">
+          <span style="font-weight:700; color:var(--morado); font-size:.85rem;">Emojis:</span>
+          <div id="emojiStickers" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;"></div>
+        </div>
+
+        <canvas id="drawCanvas" width="600" height="450" style="touch-action:none;"></canvas>
       </div>
     </section>
 
@@ -1692,7 +1757,7 @@
       </div>
       <div class="card eng-card" style="max-width: 650px; margin: 0 auto;">
         <div class="eng-header">
-          <h2>🇬🇧 English Adventure</h2>
+          <h2>🔤 English Adventure</h2>
           <div class="eng-streak-bar">
             <span>🔥 Racha: <strong id="engRacha">0</strong></span>
             <span>⭐ Puntos: <strong id="engPuntos">0</strong></span>
@@ -1734,29 +1799,7 @@
               <span class="eng-mode-desc">¡Modo aleatorio!</span>
             </button>
           </div>
-          <!-- IA Mode toggle -->
-          <div id="engIAToggle" style="margin-top:20px; padding:16px; background:linear-gradient(135deg, rgba(99,102,241,.06), rgba(236,72,153,.06)); border-radius:20px; border:2px solid var(--borde); text-align:center;">
-            <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
-              <span style="font-size:1.4rem;">🤖</span>
-              <strong style="color:var(--morado);">Modo IA (ejercicios infinitos)</strong>
-            </div>
-            <p style="font-size:.85rem; color:var(--morado-claro); margin-bottom:10px;">Genera ejercicios únicos con inteligencia artificial. Requiere contraseña del profesor.</p>
-            <div id="engIAOff">
-              <button class="btn btn-ghost btn-sm" onclick="engMostrarLoginIA()">🔑 Activar modo IA</button>
-            </div>
-            <div id="engIALogin" style="display:none;">
-              <div style="display:flex; gap:8px; max-width:320px; margin:0 auto;">
-                <input type="password" id="engIAPass" placeholder="Contraseña..." style="flex:1; text-align:center; font-size:1rem;" onkeydown="if(event.key==='Enter') engActivarIA();" />
-                <button class="btn btn-primary btn-sm" onclick="engActivarIA()">Entrar</button>
-              </div>
-              <p class="resultado" id="engIAError" style="text-align:center; font-size:.85rem;"></p>
-            </div>
-            <div id="engIAActive" style="display:none;">
-              <span style="color:var(--verde); font-weight:700;">✅ IA activada</span>
-              <span style="font-size:.82rem; color:var(--morado-claro); margin-left:8px;">Usos hoy: <strong id="engIAUsosHoy">0</strong>/30</span>
-              <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="engDesactivarIA()">Desactivar</button>
-            </div>
-          </div>
+
         </div>
 
         <!-- Loading -->
@@ -1906,7 +1949,7 @@
   </div>
 
   <footer>
-    Hecho con <span>♥</span> por Mía Hernández · 3er grado · 2025 🦄✨
+    Hecho con <span>♥</span> por Mía Hernández · 3er grado · 2026 🦄✨
   </footer>
 
 <script>
@@ -1930,6 +1973,14 @@ let progreso = JSON.parse(localStorage.getItem('progresoMia2')) || {
 let audioCtx = null;
 let musicaActiva = false;
 let intervaloMusica = null;
+
+// ═══════════════════════════════════════════════
+// SISTEMA IA GLOBAL — variables declaradas temprano para evitar TDZ
+// ═══════════════════════════════════════════════
+const IA_PASS = 'MIA2024*+';
+const IA_LIMITE_POR_JUEGO = 30;
+let iaGlobalActiva = false;
+let iaUsosPorJuego = {};
 
 // ═══════════════════════════════════════════════
 // FONDO DE PARTÍCULAS ANIMADAS
@@ -2185,8 +2236,26 @@ function elegirPregunta(tipo) {
   return lista[Math.floor(Math.random() * lista.length)];
 }
 
-function mostrarPregunta(tipo, callback) {
-  const pregunta = elegirPregunta(tipo);
+async function mostrarPregunta(tipo, callback) {
+  let pregunta;
+
+  // Try IA first for trivia
+  if (iaPuedeUsar('trivia')) {
+    const temaMap = { mate: 'matemáticas', ciencia: 'ciencia y naturaleza', acertijo: 'acertijo o adivinanza' };
+    const result = await iaFetch(
+      'Genera preguntas de trivia para niños de 8-9 años. RESPONDE SOLO JSON: {"texto":"¿Cuántas patas tiene una araña?","opciones":["6","8","10","4"],"correcta":"8"}. La respuesta correcta DEBE estar en el array de opciones. Temas variados: animales, ciencia, historia, geografía, cuerpo humano, matemáticas, naturaleza.',
+      'Genera una pregunta de ' + (temaMap[tipo] || 'conocimiento general') + ' para niños.',
+      'trivia'
+    );
+    if (result && result.texto && result.opciones && result.correcta) {
+      pregunta = result;
+    }
+  }
+
+  if (!pregunta) {
+    pregunta = elegirPregunta(tipo);
+  }
+
   preguntaCallback = callback;
   document.getElementById('modalTitulo').textContent =
     tipo === 'mate' ? '🧮 Pregunta de nivel' :
@@ -2380,23 +2449,53 @@ function cambiarDireccion(dir) {
 }
 
 document.addEventListener('keydown', e => {
+  // Only intercept arrows if snake is the active screen
+  const snakeSection = document.getElementById('snake');
+  const snakeActive = snakeSection && snakeSection.classList.contains('activa');
   const map = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
-  if (map[e.key]) { e.preventDefault(); cambiarDireccion(map[e.key]); }
-  if (e.key === ' ') arrancarSnake();
+  if (map[e.key] && snakeActive) {
+    e.preventDefault();
+    cambiarDireccion(map[e.key]);
+  }
+  if (e.key === ' ' && snakeActive) {
+    // Don't trigger if typing in input
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    arrancarSnake();
+  }
 });
 
-// Touch swipe for mobile
+// Touch swipe for mobile — only on snake screen, prevent scroll
 let touchStartX = 0, touchStartY = 0;
+let snakeTouchActive = false;
+
 document.addEventListener('touchstart', e => {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-});
+  const snakeSection = document.getElementById('snake');
+  if (snakeSection && snakeSection.classList.contains('activa')) {
+    const isOnSnake = snakeSection.contains(e.target);
+    snakeTouchActive = isOnSnake;
+    if (isOnSnake) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (snakeTouchActive && jugando) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
 document.addEventListener('touchend', e => {
+  if (!snakeTouchActive) return;
+  snakeTouchActive = false;
   const dx = e.changedTouches[0].clientX - touchStartX;
   const dy = e.changedTouches[0].clientY - touchStartY;
+  const minSwipe = 20;
+  if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
   if (Math.abs(dx) > Math.abs(dy)) {
     cambiarDireccion(dx > 0 ? 'right' : 'left');
-  } else if (Math.abs(dy) > 20) {
+  } else {
     cambiarDireccion(dy > 0 ? 'down' : 'up');
   }
 });
@@ -2424,7 +2523,24 @@ function desordenar(palabra) {
   return palabra.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-function nuevaPalabra() {
+async function nuevaPalabra() {
+  if (iaPuedeUsar('palabras')) {
+    const result = await iaFetch(
+      'Genera una palabra en español para un juego de descifrar letras (niños 8-9 años). RESPONDE SOLO JSON: {"word":"mariposa","hint":"Es un insecto que vuela con alas de colores"}. Usa palabras de 5-10 letras sobre: animales, naturaleza, escuela, comida, ciencia, geografía, deportes.',
+      'Dame una palabra nueva para descifrar.',
+      'palabras'
+    );
+    if (result && result.word) {
+      palabraActual = result.word.toLowerCase().trim();
+      let mezclada = desordenar(palabraActual);
+      while (mezclada === palabraActual) mezclada = desordenar(palabraActual);
+      document.getElementById('palabraDesordenada').textContent = mezclada.toUpperCase();
+      document.getElementById('respuestaPalabra').value = '';
+      document.getElementById('resultadoPalabra').textContent = '';
+      return;
+    }
+  }
+  // Fallback local
   palabraActual = palabras[Math.floor(Math.random() * palabras.length)];
   let mezclada = desordenar(palabraActual);
   while (mezclada === palabraActual) mezclada = desordenar(palabraActual);
@@ -2501,6 +2617,45 @@ function generarProblema() {
 }
 
 function mostrarMathProblem() {
+  // Try IA first, fallback to local
+  if (iaPuedeUsar('math')) {
+    mostrarMathProblemIA();
+  } else {
+    mostrarMathProblemLocal();
+  }
+}
+
+async function mostrarMathProblemIA() {
+  const result = await iaFetch(
+    'Genera problemas de matemáticas para niños de 8-9 años. RESPONDE SOLO JSON: {"text":"5 × 7","answer":35}. Varía: sumas (hasta 500), restas, multiplicaciones (tablas del 2-12), y problemas con texto corto tipo "María tiene 23 manzanas y le dan 18 más. ¿Cuántas tiene?".',
+    'Dame un problema de matemáticas variado y creativo.',
+    'math'
+  );
+  if (result && result.text && typeof result.answer === 'number') {
+    mathCurrentAnswer = result.answer;
+    document.getElementById('mathProblem').textContent = result.text;
+    const opts = new Set([result.answer]);
+    while (opts.size < 4) {
+      const offset = Math.floor(Math.random() * 20) - 10;
+      if (offset !== 0) opts.add(result.answer + offset);
+    }
+    const shuffled = [...opts].sort(() => Math.random() - 0.5);
+    const container = document.getElementById('mathOptions');
+    container.innerHTML = '';
+    shuffled.forEach(n => {
+      const btn = document.createElement('button');
+      btn.className = 'math-option';
+      btn.textContent = n;
+      btn.onclick = () => verificarMath(n, btn);
+      container.appendChild(btn);
+    });
+    document.getElementById('mathResultado').textContent = '';
+  } else {
+    mostrarMathProblemLocal();
+  }
+}
+
+function mostrarMathProblemLocal() {
   const problem = generarProblema();
   mathCurrentAnswer = problem.answer;
   document.getElementById('mathProblem').textContent = problem.text;
@@ -2589,7 +2744,7 @@ let memoryTotal = 8;
 let memoryIntentos = 0;
 let memoryLocked = false;
 
-function iniciarMemoria() {
+async function iniciarMemoria() {
   memoryMatched = 0;
   memoryIntentos = 0;
   memoryLocked = false;
@@ -2597,12 +2752,32 @@ function iniciarMemoria() {
   document.getElementById('memPares').textContent = 0;
   document.getElementById('memTotal').textContent = memoryTotal;
   document.getElementById('memResultado').textContent = '';
-  // pick random emojis
-  const selected = [...memoryEmojis].sort(() => Math.random() - 0.5).slice(0, memoryTotal);
+
+  let selected = null;
+
+  // Try IA first - generates a themed set
+  if (iaPuedeUsar('memoria')) {
+    const result = await iaFetch(
+      'Genera un set temático de emojis para un juego de memoria de niños. RESPONDE SOLO JSON: {"tema":"Animales del bosque","emojis":["🦊","🐻","🦉","🐿️","🦌","🦝","🐺","🦔"]}. Devuelve EXACTAMENTE 8 emojis únicos relacionados al tema. Temas variados: frutas, animales marinos, instrumentos musicales, deportes, transportes, naturaleza, comida, ropa, etc.',
+      'Genera un set temático de 8 emojis para el juego de memoria.',
+      'memoria'
+    );
+    if (result && Array.isArray(result.emojis) && result.emojis.length >= 8) {
+      selected = result.emojis.slice(0, memoryTotal);
+      if (result.tema) {
+        decir('🧠 Memoria temática: ' + result.tema + ' ✨');
+      }
+    }
+  }
+
+  if (!selected) {
+    selected = [...memoryEmojis].sort(() => Math.random() - 0.5).slice(0, memoryTotal);
+  }
+
   memoryCards = [...selected, ...selected].sort(() => Math.random() - 0.5);
   memoryFlipped = new Array(memoryCards.length).fill(false);
   renderMemory();
-  decir('¡Encuentra los pares! Usa tu super memoria 🧠');
+  if (!iaGlobalActiva) decir('¡Encuentra los pares! Usa tu super memoria 🧠');
 }
 
 function renderMemory() {
@@ -2682,6 +2857,7 @@ function getDrawPos(e) {
 }
 
 drawCanvas.addEventListener('mousedown', e => {
+  saveDrawState();
   isDrawing = true;
   const pos = getDrawPos(e);
   lastX = pos.x; lastY = pos.y;
@@ -2690,12 +2866,40 @@ drawCanvas.addEventListener('mousedown', e => {
 drawCanvas.addEventListener('mousemove', e => {
   if (!isDrawing) return;
   const pos = getDrawPos(e);
-  drawCtx.strokeStyle = isEraser ? 'white' : drawColor;
-  drawCtx.lineWidth = parseInt(document.getElementById('brushSize').value);
+  const size = parseInt(document.getElementById('brushSize').value);
+
+  if (isEraser) {
+    drawCtx.strokeStyle = 'white';
+    drawCtx.lineWidth = size * 2;
+  } else if (drawTool === 'rainbow') {
+    rainbowHue = (rainbowHue + 2) % 360;
+    drawCtx.strokeStyle = 'hsl(' + rainbowHue + ', 80%, 55%)';
+    drawCtx.lineWidth = size;
+  } else if (drawTool === 'marker') {
+    drawCtx.strokeStyle = drawColor;
+    drawCtx.lineWidth = size * 1.8;
+    drawCtx.globalAlpha = 0.4;
+  } else if (drawTool === 'spray') {
+    drawCtx.fillStyle = drawColor;
+    for (let i = 0; i < 12; i++) {
+      const ox = (Math.random() - 0.5) * size * 3;
+      const oy = (Math.random() - 0.5) * size * 3;
+      drawCtx.fillRect(pos.x + ox, pos.y + oy, 1.5, 1.5);
+    }
+    lastX = pos.x; lastY = pos.y;
+    return;
+  } else {
+    drawCtx.strokeStyle = drawColor;
+    drawCtx.lineWidth = size;
+  }
+
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
   drawCtx.beginPath();
   drawCtx.moveTo(lastX, lastY);
   drawCtx.lineTo(pos.x, pos.y);
   drawCtx.stroke();
+  drawCtx.globalAlpha = 1;
   lastX = pos.x; lastY = pos.y;
 });
 
@@ -2705,6 +2909,7 @@ drawCanvas.addEventListener('mouseleave', () => isDrawing = false);
 // Touch
 drawCanvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  saveDrawState();
   isDrawing = true;
   const pos = getDrawPos(e);
   lastX = pos.x; lastY = pos.y;
@@ -2714,12 +2919,40 @@ drawCanvas.addEventListener('touchmove', e => {
   e.preventDefault();
   if (!isDrawing) return;
   const pos = getDrawPos(e);
-  drawCtx.strokeStyle = isEraser ? 'white' : drawColor;
-  drawCtx.lineWidth = parseInt(document.getElementById('brushSize').value);
+  const size = parseInt(document.getElementById('brushSize').value);
+
+  if (isEraser) {
+    drawCtx.strokeStyle = 'white';
+    drawCtx.lineWidth = size * 2;
+  } else if (drawTool === 'rainbow') {
+    rainbowHue = (rainbowHue + 2) % 360;
+    drawCtx.strokeStyle = 'hsl(' + rainbowHue + ', 80%, 55%)';
+    drawCtx.lineWidth = size;
+  } else if (drawTool === 'marker') {
+    drawCtx.strokeStyle = drawColor;
+    drawCtx.lineWidth = size * 1.8;
+    drawCtx.globalAlpha = 0.4;
+  } else if (drawTool === 'spray') {
+    drawCtx.fillStyle = drawColor;
+    for (let i = 0; i < 12; i++) {
+      const ox = (Math.random() - 0.5) * size * 3;
+      const oy = (Math.random() - 0.5) * size * 3;
+      drawCtx.fillRect(pos.x + ox, pos.y + oy, 1.5, 1.5);
+    }
+    lastX = pos.x; lastY = pos.y;
+    return;
+  } else {
+    drawCtx.strokeStyle = drawColor;
+    drawCtx.lineWidth = size;
+  }
+
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
   drawCtx.beginPath();
   drawCtx.moveTo(lastX, lastY);
   drawCtx.lineTo(pos.x, pos.y);
   drawCtx.stroke();
+  drawCtx.globalAlpha = 1;
   lastX = pos.x; lastY = pos.y;
 }, { passive: false });
 
@@ -2737,11 +2970,21 @@ document.querySelectorAll('.color-btn').forEach(btn => {
 
 function toggleEraser() {
   isEraser = !isEraser;
+  drawTool = 'pen';
+  const sel = document.getElementById('brushTool');
+  if (sel) sel.value = 'pen';
+  const btn = document.getElementById('btnEraser');
+  if (btn) {
+    btn.style.background = isEraser ? 'var(--gradiente-calido)' : '';
+    btn.style.color = isEraser ? 'white' : '';
+    btn.textContent = isEraser ? '🧽 Borrador ✓' : '🧽 Borrador';
+  }
   if (isEraser) decir('🧽 Borrador activado');
   else decir('🎨 Pincel activado');
 }
 
 function clearCanvas() {
+  saveDrawState();
   drawCtx.fillStyle = 'white';
   drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
   decir('¡Lienzo limpio! A crear algo nuevo 🎨');
@@ -2755,6 +2998,78 @@ function downloadDrawing() {
   sumarEstrellas(2);
   decir('¡Dibujo guardado! +2 estrellas por ser artista 🖼️');
   showToast('🎨 ¡Dibujo guardado!');
+}
+
+// Enhanced drawing tools
+let drawTool = 'pen';
+let drawHistory = [];
+let rainbowHue = 0;
+
+function setDrawTool(tool) {
+  drawTool = tool;
+  isEraser = false;
+}
+
+function setCustomColor(color) {
+  drawColor = color;
+  isEraser = false;
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+}
+
+function undoCanvas() {
+  if (drawHistory.length > 0) {
+    const imgData = drawHistory.pop();
+    drawCtx.putImageData(imgData, 0, 0);
+    showToast('↩️ Deshecho');
+  }
+}
+
+function saveDrawState() {
+  if (drawHistory.length > 30) drawHistory.shift();
+  drawHistory.push(drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+}
+
+// Emoji stickers — click emoji then click canvas to place
+const drawEmojis = ['⭐','❤️','🌈','🦄','🌸','🦋','🐱','🐶','🌺','🍭','🎀','✨','🌙','☀️','🎈','🍎','🐬','🌻','🎨','💎','🦊','🐸','🌷','🍩','🎵','🏠','🚀','🌍','🎪','🧁'];
+let pendingSticker = null;
+
+function initEmojiStickers() {
+  const container = document.getElementById('emojiStickers');
+  if (!container) return;
+  container.innerHTML = '';
+  drawEmojis.forEach(em => {
+    const btn = document.createElement('button');
+    btn.textContent = em;
+    btn.style.cssText = 'font-size:1.4rem; background:white; border:2px solid var(--borde); border-radius:10px; padding:4px 8px; cursor:pointer; transition:all .15s;';
+    btn.onmouseover = () => btn.style.transform = 'scale(1.2)';
+    btn.onmouseout = () => { if (pendingSticker !== em) btn.style.transform = ''; };
+    btn.onclick = () => {
+      pendingSticker = em;
+      container.querySelectorAll('button').forEach(b => b.style.borderColor = 'var(--borde)');
+      btn.style.borderColor = 'var(--morado)';
+      btn.style.transform = 'scale(1.2)';
+      drawCanvas.style.cursor = 'crosshair';
+      showToast(em + ' — toca el lienzo para colocarlo');
+    };
+    container.appendChild(btn);
+  });
+
+  // Place sticker on canvas click
+  drawCanvas.addEventListener('click', (e) => {
+    if (!pendingSticker) return;
+    saveDrawState();
+    const pos = getDrawPos(e);
+    drawCtx.font = '48px serif';
+    drawCtx.textAlign = 'center';
+    drawCtx.textBaseline = 'middle';
+    drawCtx.fillText(pendingSticker, pos.x, pos.y);
+    pendingSticker = null;
+    drawCanvas.style.cursor = 'crosshair';
+    document.getElementById('emojiStickers').querySelectorAll('button').forEach(b => {
+      b.style.borderColor = 'var(--borde)';
+      b.style.transform = '';
+    });
+  });
 }
 
 // ═══════════════════════════════════════════════
@@ -2778,6 +3093,7 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 // Init
+iaInit();
 pintarProgreso();
 nuevaPalabra();
 reiniciarSnake();
@@ -2805,10 +3121,6 @@ let engPuntosTotal = 0;
 let engCurrentMode = 'random';
 let engCurrentData = null;
 let engAnswered = false;
-let engIAActivada = false;
-let engIAUsosHoy = 0;
-const ENG_IA_LIMITE_DIARIO = 30;
-const ENG_IA_PASS = 'mia2025';
 
 // Track used exercises to avoid repeats
 let engUsedIndexes = { translate:[], complete:[], vocabulary:[], conversation:[], listen:[] };
@@ -2877,7 +3189,7 @@ vocabulary: [
   {category:"📖 Vocabulario",instruction:"¿Cómo se traduce esta palabra?",prompt:"Scissors",options:["Pegamento","Tijeras","Regla","Cinta"],correct:1,explanation:"'Scissors' = tijeras. Se pronuncia 'si-sors'",speakText:"Scissors",speakAnswer:"Scissors"},
   {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Whale",options:["Tiburón","Delfín","Ballena","Pulpo"],correct:2,explanation:"'Whale' = ballena. Se pronuncia 'ueil'",speakText:"Whale",speakAnswer:"Whale"},
   {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Cloud",options:["Sol","Nube","Estrella","Luna"],correct:1,explanation:"'Cloud' = nube. Se pronuncia 'claud'",speakText:"Cloud",speakAnswer:"Cloud"},
-  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Sweater",options:["Pantalón","Camisa","Suéter","Falda"],correct:2,explanation:"'Sweater' = suéter. Se pronuncia 'sue-ter'",sweakText:"Sweater",speakAnswer:"Sweater",speakText:"Sweater"},
+  {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Sweater",options:["Pantalón","Camisa","Suéter","Falda"],correct:2,explanation:"'Sweater' = suéter. Se pronuncia 'sue-ter'",speakText:"Sweater",speakAnswer:"Sweater"},
   {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Leaf",options:["Rama","Flor","Raíz","Hoja"],correct:3,explanation:"'Leaf' = hoja (de árbol). El plural es 'leaves'",speakText:"Leaf",speakAnswer:"Leaf"},
   {category:"📖 Vocabulario",instruction:"¿Qué significa?",prompt:"Brave",options:["Tímido","Valiente","Triste","Cansado"],correct:1,explanation:"'Brave' = valiente. Se pronuncia 'breiv'",speakText:"Brave",speakAnswer:"Brave"},
   {category:"📖 Vocabulario",instruction:"¿Cómo se traduce?",prompt:"Tongue",options:["Diente","Labio","Lengua","Nariz"],correct:2,explanation:"'Tongue' = lengua. Se pronuncia 'tang'",speakText:"Tongue",speakAnswer:"Tongue"},
@@ -2935,68 +3247,156 @@ listen: [
 };
 
 // ═══════════════════════════════════════════════
-// IA: LOGIN, ACTIVACIÓN Y LÍMITE
+// SISTEMA GLOBAL DE IA — Todos los juegos
+// (variables ya declaradas al inicio del script)
 // ═══════════════════════════════════════════════
 
+function iaInit() {
+  const data = JSON.parse(localStorage.getItem('iaGlobal') || '{}');
+  const today = new Date().toDateString();
+  if (data.date === today) {
+    iaGlobalActiva = data.activa || false;
+    iaUsosPorJuego = data.usos || {};
+  } else {
+    iaGlobalActiva = data.activa || false;
+    iaUsosPorJuego = {};
+  }
+  iaUpdateUI();
+}
+
+function iaUpdateUI() {
+  const btn = document.getElementById('btnIA');
+  if (btn) {
+    btn.textContent = iaGlobalActiva ? '🤖 IA ✅' : '🤖 IA';
+    btn.style.background = iaGlobalActiva ? 'var(--gradiente-bosque)' : '';
+    btn.style.color = iaGlobalActiva ? 'white' : '';
+  }
+}
+
+function mostrarLoginIA() {
+  const modal = document.getElementById('iaModal');
+  modal.style.display = 'flex';
+  if (iaGlobalActiva) {
+    document.getElementById('iaLoginForm').style.display = 'none';
+    document.getElementById('iaActiveInfo').style.display = 'block';
+    // Render usage info
+    const usageDiv = document.getElementById('iaUsageInfo');
+    if (usageDiv) {
+      const juegos = {
+        ingles: '🔤 Inglés',
+        math: '🌳 Bosque Matemático',
+        palabras: '🏰 Castillo de Lectura',
+        trivia: '🧠 Preguntas Rápidas',
+        memoria: '🧩 Memoria Mágica'
+      };
+      let html = '<strong style="display:block; margin-bottom:6px;">📊 Usos hoy (límite ' + IA_LIMITE_POR_JUEGO + '/juego):</strong>';
+      for (const [key, label] of Object.entries(juegos)) {
+        const usos = iaUsosPorJuego[key] || 0;
+        const restantes = IA_LIMITE_POR_JUEGO - usos;
+        const color = restantes > 10 ? 'var(--verde)' : (restantes > 0 ? 'var(--amarillo)' : 'var(--coral)');
+        html += '<div style="display:flex; justify-content:space-between; padding:2px 0;"><span>' + label + '</span><span style="color:' + color + '; font-weight:700;">' + usos + '/' + IA_LIMITE_POR_JUEGO + '</span></div>';
+      }
+      usageDiv.innerHTML = html;
+    }
+  } else {
+    document.getElementById('iaLoginForm').style.display = 'block';
+    document.getElementById('iaActiveInfo').style.display = 'none';
+    document.getElementById('iaPassInput').value = '';
+    document.getElementById('iaLoginError').textContent = '';
+    setTimeout(() => document.getElementById('iaPassInput').focus(), 100);
+  }
+}
+
+function cerrarModalIA() {
+  document.getElementById('iaModal').style.display = 'none';
+}
+
+function activarIA() {
+  const pass = document.getElementById('iaPassInput').value.trim();
+  if (pass === IA_PASS) {
+    iaGlobalActiva = true;
+    iaGuardar();
+    iaUpdateUI();
+    document.getElementById('iaLoginForm').style.display = 'none';
+    document.getElementById('iaActiveInfo').style.display = 'block';
+    sonido('win');
+    showToast('🤖 ¡IA activada!');
+    decir('🤖 ¡Modo IA activado en todos los juegos! ✨');
+  } else {
+    document.getElementById('iaLoginError').textContent = '❌ Contraseña incorrecta';
+    document.getElementById('iaLoginError').className = 'resultado incorrecto';
+    sonido('error');
+  }
+}
+
+function desactivarIA() {
+  iaGlobalActiva = false;
+  iaGuardar();
+  iaUpdateUI();
+  cerrarModalIA();
+  showToast('🤖 IA desactivada');
+  decir('Modo IA desactivado 📚');
+}
+
+function iaGuardar() {
+  localStorage.setItem('iaGlobal', JSON.stringify({ activa: iaGlobalActiva, usos: iaUsosPorJuego, date: new Date().toDateString() }));
+}
+
+function iaPuedeUsar(juego) {
+  if (!iaGlobalActiva) return false;
+  return (iaUsosPorJuego[juego] || 0) < IA_LIMITE_POR_JUEGO;
+}
+
+function iaRegistrarUso(juego) {
+  iaUsosPorJuego[juego] = (iaUsosPorJuego[juego] || 0) + 1;
+  iaGuardar();
+}
+
+// Función genérica para pedir ejercicios por IA a cualquier juego
+async function iaFetch(systemPrompt, userPrompt, juego) {
+  // Visual feedback while IA loads
+  const loadingToast = document.getElementById('toast');
+  if (loadingToast) {
+    loadingToast.textContent = '🤖 IA pensando...';
+    loadingToast.classList.add('show');
+  }
+  try {
+    const response = await fetch('/.netlify/functions/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        max_tokens: 800,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    if (!response.ok) {
+      if (loadingToast) loadingToast.classList.remove('show');
+      return null;
+    }
+    const data = await response.json();
+    if (data.error) {
+      if (loadingToast) loadingToast.classList.remove('show');
+      return null;
+    }
+    const text = data.content.map(c => c.text || '').join('');
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    iaRegistrarUso(juego);
+    if (loadingToast) loadingToast.classList.remove('show');
+    return parsed;
+  } catch (e) {
+    console.warn('IA fetch failed for ' + juego + ':', e);
+    if (loadingToast) loadingToast.classList.remove('show');
+    return null;
+  }
+}
+
+// English-specific init
 function engIniciar() {
   document.getElementById('engModeSelect').style.display = 'block';
   document.getElementById('engExercise').style.display = 'none';
   document.getElementById('engLoading').style.display = 'none';
   document.getElementById('engError').style.display = 'none';
-  // Restore IA status from localStorage
-  const iaData = JSON.parse(localStorage.getItem('engIA') || '{}');
-  const today = new Date().toDateString();
-  if (iaData.date === today) {
-    engIAUsosHoy = iaData.usos || 0;
-  } else {
-    engIAUsosHoy = 0;
-  }
-  if (iaData.activa) {
-    engIAActivada = true;
-    document.getElementById('engIAOff').style.display = 'none';
-    document.getElementById('engIALogin').style.display = 'none';
-    document.getElementById('engIAActive').style.display = 'block';
-    document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
-  }
-}
-
-function engMostrarLoginIA() {
-  document.getElementById('engIAOff').style.display = 'none';
-  document.getElementById('engIALogin').style.display = 'block';
-  document.getElementById('engIAError').textContent = '';
-  document.getElementById('engIAPass').focus();
-}
-
-function engActivarIA() {
-  const pass = document.getElementById('engIAPass').value.trim();
-  if (pass === ENG_IA_PASS) {
-    engIAActivada = true;
-    document.getElementById('engIALogin').style.display = 'none';
-    document.getElementById('engIAActive').style.display = 'block';
-    document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
-    localStorage.setItem('engIA', JSON.stringify({ activa: true, usos: engIAUsosHoy, date: new Date().toDateString() }));
-    sonido('win');
-    decir('🤖 ¡Modo IA activado! Los ejercicios ahora son infinitos ✨');
-    showToast('🤖 ¡IA activada!');
-  } else {
-    document.getElementById('engIAError').textContent = '❌ Contraseña incorrecta';
-    document.getElementById('engIAError').className = 'resultado incorrecto';
-    sonido('error');
-  }
-}
-
-function engDesactivarIA() {
-  engIAActivada = false;
-  document.getElementById('engIAActive').style.display = 'none';
-  document.getElementById('engIAOff').style.display = 'block';
-  localStorage.setItem('engIA', JSON.stringify({ activa: false, usos: engIAUsosHoy, date: new Date().toDateString() }));
-  decir('Modo IA desactivado. Sigues con +200 ejercicios locales 📚');
-}
-
-function engGuardarUsoIA() {
-  engIAUsosHoy++;
-  document.getElementById('engIAUsosHoy').textContent = engIAUsosHoy;
-  localStorage.setItem('engIA', JSON.stringify({ activa: true, usos: engIAUsosHoy, date: new Date().toDateString() }));
 }
 
 // ═══════════════════════════════════════════════
@@ -3036,12 +3436,11 @@ async function engPedir(mode) {
   document.getElementById('engLoading').style.display = 'block';
 
   // Decide: local or IA
-  if (engIAActivada && engIAUsosHoy < ENG_IA_LIMITE_DIARIO) {
+  if (iaPuedeUsar('ingles')) {
     document.getElementById('engLoadingText').textContent = '🤖 La IA está creando tu ejercicio...';
     await engPedirIA(mode);
   } else {
     document.getElementById('engLoadingText').textContent = '📚 Preparando ejercicio...';
-    // Small delay for effect
     await new Promise(r => setTimeout(r, 300));
     engPedirLocal(mode);
   }
@@ -3119,7 +3518,7 @@ RESPONDE SOLO con JSON válido (sin markdown, sin backticks):
 
     const text = data.content.map(c => c.text || '').join('');
     engCurrentData = JSON.parse(text.replace(/```json|```/g, '').trim());
-    engGuardarUsoIA();
+    iaRegistrarUso('ingles');
     engMostrarEjercicio();
 
   } catch (err) {
@@ -3140,7 +3539,7 @@ function engMostrarEjercicio() {
 
   document.getElementById('engLoading').style.display = 'none';
   document.getElementById('engExercise').style.display = 'block';
-  document.getElementById('engCategory').textContent = d.category || '🇬🇧 English';
+  document.getElementById('engCategory').textContent = d.category || '🔤 English';
   document.getElementById('engInstruction').textContent = d.instruction || '';
 
   const promptBox = document.getElementById('engPromptBox');
@@ -3179,7 +3578,7 @@ function engMostrarEjercicio() {
   document.getElementById('engResultado').className = 'resultado';
   document.getElementById('engExplanation').style.display = 'none';
 
-  decir('🇬🇧 ¡Nuevo ejercicio de inglés! You can do it! 💪');
+  decir('🔤 ¡Nuevo ejercicio de inglés! You can do it! 💪');
   sonido('match');
 }
 
@@ -3225,10 +3624,19 @@ function engResponder(index, btn, container) {
 
   if (d.explanation) {
     const expl = document.getElementById('engExplanation');
-    expl.innerHTML = '<strong>💡 Tip:</strong> ' + d.explanation;
+    expl.innerHTML = '';
+    const tipStrong = document.createElement('strong');
+    tipStrong.textContent = '💡 Tip: ';
+    expl.appendChild(tipStrong);
+    expl.appendChild(document.createTextNode(d.explanation));
     if (d.speakAnswer) {
-      const safeAnswer = (d.speakAnswer || '').replace(/'/g, "\\'");
-      expl.innerHTML += '<br><button class="eng-speak-btn" style="margin-top:8px;" onclick="engHablar(\'' + safeAnswer + '\', \'en-US\')">🔊 Escuchar respuesta</button>';
+      expl.appendChild(document.createElement('br'));
+      const btn = document.createElement('button');
+      btn.className = 'eng-speak-btn';
+      btn.style.marginTop = '8px';
+      btn.innerHTML = '🔊 Escuchar respuesta';
+      btn.onclick = () => engHablar(d.speakAnswer, 'en-US');
+      expl.appendChild(btn);
     }
     expl.style.display = 'block';
   }
@@ -3432,20 +3840,22 @@ async function mpUnirse() {
 
 function mpHandleConnection(conn) {
   conn.on('open', () => {
+    // Store connection temporarily by peer id until we get the join message
+    mpConnections['_temp_' + conn.peer] = conn;
     conn.on('data', (data) => mpHandleData(data, conn.peer));
     conn.on('close', () => {
-      // find player id by peer
       for (const [pid, info] of Object.entries(mpPlayers)) {
         if (info.peer === conn.peer) {
           mpAddChat('Sistema', `${info.avatar} ${info.name} se fue`);
           delete mpPlayers[pid];
           delete mpConnections[pid];
           mpRenderPlayers();
-          mpBroadcast({ type: 'playerList', players: mpPlayers });
+          mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
           break;
         }
       }
     });
+    conn.on('error', (err) => console.warn('Conn error:', err));
   });
 }
 
@@ -3456,12 +3866,19 @@ function mpHandleData(data, fromPeer) {
     case 'join':
       if (mpIsHost) {
         mpPlayers[data.id] = { name: data.name, avatar: data.avatar, score: 0, peer: fromPeer };
-        // find the connection for this peer
-        const allConns = mpPeer.connections;
-        for (const key of Object.keys(allConns)) {
-          for (const c of allConns[key]) {
-            if (c.peer === fromPeer && c.open) {
-              mpConnections[data.id] = c;
+        // Find and store the connection properly
+        const tempKey = '_temp_' + fromPeer;
+        if (mpConnections[tempKey]) {
+          mpConnections[data.id] = mpConnections[tempKey];
+          delete mpConnections[tempKey];
+        } else {
+          // Fallback: search all peer connections
+          const allConns = mpPeer.connections;
+          for (const key of Object.keys(allConns)) {
+            for (const c of allConns[key]) {
+              if (c.peer === fromPeer && c.open) {
+                mpConnections[data.id] = c;
+              }
             }
           }
         }
@@ -3855,8 +4272,10 @@ function mpShowMemoriaBoard() {
     const isRevealed = mpGameState.revealed[i] || mpGameState.matched[i];
     cell.className = 'memory-cell' + (isRevealed ? '' : ' hidden-card') + (mpGameState.matched[i] ? ' matched' : '');
     if (isRevealed) cell.textContent = emoji;
-    if (isMyTurn && !mpGameState.matched[i] && !mpGameState.revealed[i]) {
+    if (!mpGameState.matched[i] && !mpGameState.revealed[i]) {
       cell.onclick = () => mpMemFlip(i);
+      cell.style.cursor = isMyTurn ? 'pointer' : 'not-allowed';
+      cell.style.opacity = isMyTurn ? '1' : '0.85';
     }
     grid.appendChild(cell);
   });
@@ -3870,6 +4289,9 @@ function mpShowMemoriaBoard() {
 function mpMemFlip(index) {
   if (mpGameState.flippedThisTurn.length >= 2) return;
   if (mpGameState.revealed[index] || mpGameState.matched[index]) return;
+
+  const myId = mpIsHost ? 'host' : mpMyId;
+  if (mpGameState.currentTurn !== myId) return; // Not my turn
 
   mpGameState.revealed[index] = true;
   mpGameState.flippedThisTurn.push(index);
@@ -4134,6 +4556,7 @@ function mpVolverLobby() {
 // === INIT MULTIPLAYER UI ===
 mpInitAvatarPicker();
 mpInitEmojiBar();
+initEmojiStickers();
 
 
 </script>
