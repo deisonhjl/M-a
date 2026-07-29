@@ -1460,7 +1460,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <div class="logo-icon">🦄</div>
-      Mundo de Mía
+      Mundo de Mía <span style="font-size:.6rem; color:var(--morado-claro); font-weight:600; vertical-align:super;">v13</span>
     </div>
     <div class="stats-bar">
       <div class="stat-pill">⭐ <span class="stat-value" id="estrellas">0</span></div>
@@ -1876,7 +1876,7 @@
       </div>
       <div class="mp-hub">
         <div class="card">
-          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v12</span></h2>
+          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v13</span></h2>
           <p style="color:var(--morado-claro); margin-bottom: 16px;">¡Juega con tus amigos en tiempo real! Crea una sala o únete con un código.</p>
 
           <div id="mpSetup">
@@ -4641,9 +4641,11 @@ async function mpUnirse() {
       if (intentos < MAX_INTENTOS) {
         intentarConectar();
       } else {
+        // Si NO hubo error 'peer-unavailable', el anfitrión SÍ está en línea:
+        // el problema es la conexión directa (versión vieja en caché o red que bloquea)
         statusDot.className = 'mp-status-dot';
-        statusText.textContent = '⏱️ No se pudo conectar. Verifica que ambos tengan la página actualizada.';
-        decir('Cierra y abre la página en los dos dispositivos, luego reintenta 🔄');
+        statusText.textContent = '⚠️ El anfitrión está en línea pero la conexión directa falló';
+        decir('Cierren y vuelvan a abrir la página en LOS DOS dispositivos (debe decir v13 arriba), luego reintenta 🔄');
         mpMostrarReintento();
       }
     };
