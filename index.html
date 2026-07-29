@@ -1460,7 +1460,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <div class="logo-icon">🦄</div>
-      Mundo de Mía <span style="font-size:.6rem; color:var(--morado-claro); font-weight:600; vertical-align:super;">v13</span>
+      Mundo de Mía <span style="font-size:.6rem; color:var(--morado-claro); font-weight:600; vertical-align:super;">v14</span>
     </div>
     <div class="stats-bar">
       <div class="stat-pill">⭐ <span class="stat-value" id="estrellas">0</span></div>
@@ -1876,7 +1876,7 @@
       </div>
       <div class="mp-hub">
         <div class="card">
-          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v13</span></h2>
+          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v14</span></h2>
           <p style="color:var(--morado-claro); margin-bottom: 16px;">¡Juega con tus amigos en tiempo real! Crea una sala o únete con un código.</p>
 
           <div id="mpSetup">
@@ -4432,10 +4432,21 @@ function mpCrearPeer(id) {
       return;
     }
     let settled = false;
-    // Sin config personalizada: PeerJS incluye por defecto sus propios servidores
-    // STUN (Google/Twilio) y TURN (turn.peerjs.com) gratuitos y funcionales.
-    // Sobrescribirlos con servidores externos era lo que rompía la conexión.
-    const peer = new Peer(id, { debug: 0 });
+    // Servidores TURN de Metered.ca (cuenta miaprende) — permiten conectar
+    // jugadores en redes/casas distintas retransmitiendo el tráfico WebRTC.
+    // STUN de PeerJS + TURN de Metered = máxima compatibilidad.
+    const peer = new Peer(id, {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.relay.metered.ca:80' },
+          { urls: 'turn:global.relay.metered.ca:80', username: '016b6158bf974d4a547a533c', credential: 'ZkR/+jJXEGE4q6Eo' },
+          { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: '016b6158bf974d4a547a533c', credential: 'ZkR/+jJXEGE4q6Eo' },
+          { urls: 'turn:global.relay.metered.ca:443', username: '016b6158bf974d4a547a533c', credential: 'ZkR/+jJXEGE4q6Eo' },
+          { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: '016b6158bf974d4a547a533c', credential: 'ZkR/+jJXEGE4q6Eo' }
+        ]
+      }
+    });
     peer.on('open', () => {
       if (settled) return;
       settled = true;
