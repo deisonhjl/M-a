@@ -955,6 +955,11 @@
 
     @keyframes eng-spin { to { transform: rotate(360deg); } }
 
+    @keyframes eng-pulse-attention {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(147, 51, 234, 0); }
+    }
+
     .eng-category {
       display: inline-flex;
       align-items: center;
@@ -1764,6 +1769,17 @@
           </div>
         </div>
 
+        <div style="text-align:right; margin-bottom:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="engToggleDiccionario()">📖 Mi Diccionario (<span id="engDicCount">0</span>)</button>
+        </div>
+
+        <!-- Panel Mi Diccionario -->
+        <div id="engDicPanel" style="display:none; background:linear-gradient(135deg, rgba(99,102,241,.05), rgba(236,72,153,.05)); border:2px solid var(--borde); border-radius:20px; padding:16px; margin-bottom:16px;">
+          <h3 style="font-family:'Baloo 2',sans-serif; color:var(--morado); margin-bottom:8px;">📖 Palabras que ya aprendiste</h3>
+          <p style="font-size:.82rem; color:var(--morado-claro); margin-bottom:10px;">Cada palabra que aciertas se guarda aquí. ¡Toca 🔊 para repasar la pronunciación!</p>
+          <div id="engDicLista" style="display:flex; flex-wrap:wrap; gap:8px; max-height:220px; overflow-y:auto;"></div>
+        </div>
+
         <!-- Selector de modo -->
         <div id="engModeSelect">
           <p style="color:var(--morado-claro); text-align:center; margin-bottom:16px; font-weight:600;">Elige un tipo de ejercicio:</p>
@@ -1793,6 +1809,21 @@
               <span class="eng-mode-label">Escuchar</span>
               <span class="eng-mode-desc">Escucha y elige</span>
             </button>
+            <button class="eng-mode-btn" onclick="engPedir('spelling')">
+              <span class="eng-mode-icon">🐝</span>
+              <span class="eng-mode-label">Deletreo</span>
+              <span class="eng-mode-desc">Escucha y escribe</span>
+            </button>
+            <button class="eng-mode-btn" onclick="engPedir('emojiWord')">
+              <span class="eng-mode-icon">🖼️</span>
+              <span class="eng-mode-label">Emoji Word</span>
+              <span class="eng-mode-desc">Mira y nombra en inglés</span>
+            </button>
+            <button class="eng-mode-btn" id="engSpeakCard" onclick="engPedir('speak')">
+              <span class="eng-mode-icon">🎤</span>
+              <span class="eng-mode-label">Pronuncia</span>
+              <span class="eng-mode-desc">¡Dilo en voz alta!</span>
+            </button>
             <button class="eng-mode-btn" onclick="engPedir('random')">
               <span class="eng-mode-icon">🎲</span>
               <span class="eng-mode-label">Sorpresa</span>
@@ -1817,7 +1848,7 @@
           <p class="resultado" id="engResultado" style="text-align:center;"></p>
           <div class="eng-explanation" id="engExplanation" style="display:none;"></div>
           <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;" id="engActions">
-            <button class="btn btn-primary" onclick="engPedir(engCurrentMode)">🔄 Otro ejercicio</button>
+            <button class="btn btn-primary" onclick="engPedir(engOriginalMode)">🔄 Otro ejercicio</button>
             <button class="btn btn-ghost btn-sm" onclick="document.getElementById('engModeSelect').style.display='block'; document.getElementById('engExercise').style.display='none';">🎮 Cambiar modo</button>
           </div>
         </div>
@@ -1826,7 +1857,7 @@
         <div id="engError" style="display:none; text-align:center; padding:30px;">
           <p style="font-size:40px;">😵</p>
           <p style="font-weight:700; color:var(--coral); margin:10px 0;" id="engErrorText">Algo salió mal</p>
-          <button class="btn btn-primary" onclick="engPedir(engCurrentMode)">Intentar de nuevo</button>
+          <button class="btn btn-primary" onclick="engPedir(engOriginalMode)">Intentar de nuevo</button>
         </div>
       </div>
     </section>
@@ -1885,14 +1916,19 @@
                 <p>¿Quién resuelve más rápido?</p>
               </div>
               <div class="mp-mode-card" onclick="mpIniciarJuego('memoriaVs')">
-                <span class="mode-emoji">🧠</span>
-                <h3>Memoria VS</h3>
-                <p>Competencia de pares</p>
+                <span class="mode-emoji">🇬🇧</span>
+                <h3>Memoria English</h3>
+                <p>Encuentra pares y practica inglés</p>
               </div>
               <div class="mp-mode-card" onclick="mpIniciarJuego('palabrasVs')">
                 <span class="mode-emoji">📚</span>
                 <h3>Palabras Rápidas</h3>
                 <p>Descifra antes que tu rival</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('englishBattle')">
+                <span class="mode-emoji">🏆</span>
+                <h3>English Battle</h3>
+                <p>¡Batalla de inglés en vivo!</p>
               </div>
             </div>
 
@@ -2243,12 +2279,16 @@ async function mostrarPregunta(tipo, callback) {
   if (iaPuedeUsar('trivia')) {
     const temaMap = { mate: 'matemáticas', ciencia: 'ciencia y naturaleza', acertijo: 'acertijo o adivinanza' };
     const result = await iaFetch(
-      'Genera preguntas de trivia para niños de 8-9 años. RESPONDE SOLO JSON: {"texto":"¿Cuántas patas tiene una araña?","opciones":["6","8","10","4"],"correcta":"8"}. La respuesta correcta DEBE estar en el array de opciones. Temas variados: animales, ciencia, historia, geografía, cuerpo humano, matemáticas, naturaleza.',
-      'Genera una pregunta de ' + (temaMap[tipo] || 'conocimiento general') + ' para niños.',
+      'Genera preguntas de trivia para niños de 8-9 años. RESPONDE SOLO JSON: {"texto":"¿Cuántas patas tiene una araña?","opciones":["6","8","10","4"],"correcta":"8"}. ' +
+      'La respuesta correcta DEBE estar EXACTAMENTE en el array de opciones (misma string). ' +
+      'Temas variados: animales, ciencia, historia, geografía, cuerpo humano, matemáticas, naturaleza, espacio, dinosaurios, plantas, oceanos, países. ' +
+      'NUNCA repitas una pregunta que ya hayas usado. Varía el tema y el enfoque cada vez.',
+      'Genera una pregunta NUEVA de ' + (temaMap[tipo] || 'conocimiento general') + ' para niños, diferente a las anteriores.',
       'trivia'
     );
     if (result && result.texto && result.opciones && result.correcta) {
       pregunta = result;
+      iaAgregarHistorial('trivia', result.texto.substring(0, 50));
     }
   }
 
@@ -2526,12 +2566,15 @@ function desordenar(palabra) {
 async function nuevaPalabra() {
   if (iaPuedeUsar('palabras')) {
     const result = await iaFetch(
-      'Genera una palabra en español para un juego de descifrar letras (niños 8-9 años). RESPONDE SOLO JSON: {"word":"mariposa","hint":"Es un insecto que vuela con alas de colores"}. Usa palabras de 5-10 letras sobre: animales, naturaleza, escuela, comida, ciencia, geografía, deportes.',
-      'Dame una palabra nueva para descifrar.',
+      'Genera una palabra en español para un juego de descifrar letras (niños 8-9 años). RESPONDE SOLO JSON: {"word":"mariposa","hint":"Es un insecto que vuela con alas de colores"}. ' +
+      'Usa palabras de 5-10 letras sobre temas variados: animales, naturaleza, escuela, comida, ciencia, geografía, deportes, profesiones, instrumentos, transportes, ropa, casa, emociones. ' +
+      'NUNCA repitas una palabra que ya hayas usado. Cambia el tema cada vez.',
+      'Dame una palabra NUEVA y DIFERENTE para descifrar.',
       'palabras'
     );
     if (result && result.word) {
       palabraActual = result.word.toLowerCase().trim();
+      iaAgregarHistorial('palabras', palabraActual);
       let mezclada = desordenar(palabraActual);
       while (mezclada === palabraActual) mezclada = desordenar(palabraActual);
       document.getElementById('palabraDesordenada').textContent = mezclada.toUpperCase();
@@ -2627,11 +2670,14 @@ function mostrarMathProblem() {
 
 async function mostrarMathProblemIA() {
   const result = await iaFetch(
-    'Genera problemas de matemáticas para niños de 8-9 años. RESPONDE SOLO JSON: {"text":"5 × 7","answer":35}. Varía: sumas (hasta 500), restas, multiplicaciones (tablas del 2-12), y problemas con texto corto tipo "María tiene 23 manzanas y le dan 18 más. ¿Cuántas tiene?".',
-    'Dame un problema de matemáticas variado y creativo.',
+    'Genera problemas de matemáticas para niños de 8-9 años. RESPONDE SOLO JSON: {"text":"5 × 7","answer":35}. ' +
+    'Varía MUCHO: sumas (hasta 500), restas, multiplicaciones (tablas del 2-12), divisiones simples, y problemas con texto corto tipo "María tiene 23 manzanas y le dan 18 más. ¿Cuántas tiene?". ' +
+    'NUNCA repitas la misma operación numérica que ya hayas usado. Cambia los números y el tipo de operación cada vez.',
+    'Dame un problema de matemáticas variado y creativo, diferente a los anteriores.',
     'math'
   );
   if (result && result.text && typeof result.answer === 'number') {
+    iaAgregarHistorial('math', result.text);
     mathCurrentAnswer = result.answer;
     document.getElementById('mathProblem').textContent = result.text;
     const opts = new Set([result.answer]);
@@ -2758,13 +2804,17 @@ async function iniciarMemoria() {
   // Try IA first - generates a themed set
   if (iaPuedeUsar('memoria')) {
     const result = await iaFetch(
-      'Genera un set temático de emojis para un juego de memoria de niños. RESPONDE SOLO JSON: {"tema":"Animales del bosque","emojis":["🦊","🐻","🦉","🐿️","🦌","🦝","🐺","🦔"]}. Devuelve EXACTAMENTE 8 emojis únicos relacionados al tema. Temas variados: frutas, animales marinos, instrumentos musicales, deportes, transportes, naturaleza, comida, ropa, etc.',
-      'Genera un set temático de 8 emojis para el juego de memoria.',
+      'Genera un set temático de emojis para un juego de memoria de niños. RESPONDE SOLO JSON: {"tema":"Animales del bosque","emojis":["🦊","🐻","🦉","🐿️","🦌","🦝","🐺","🦔"]}. ' +
+      'Devuelve EXACTAMENTE 8 emojis únicos relacionados al tema. ' +
+      'Temas variados: frutas, animales marinos, instrumentos musicales, deportes, transportes, naturaleza, comida, ropa, profesiones, dulces, juguetes, vehículos espaciales, animales de granja, postres. ' +
+      'NUNCA repitas un tema que ya hayas usado.',
+      'Genera un set temático NUEVO de 8 emojis para memoria, diferente a temas anteriores.',
       'memoria'
     );
     if (result && Array.isArray(result.emojis) && result.emojis.length >= 8) {
       selected = result.emojis.slice(0, memoryTotal);
       if (result.tema) {
+        iaAgregarHistorial('memoria', result.tema);
         decir('🧠 Memoria temática: ' + result.tema + ' ✨');
       }
     }
@@ -3119,6 +3169,7 @@ document.addEventListener('click', (e) => {
 let engRacha = 0;
 let engPuntosTotal = 0;
 let engCurrentMode = 'random';
+let engOriginalMode = 'random'; // Modo elegido por el usuario (para "Sorpresa")
 let engCurrentData = null;
 let engAnswered = false;
 
@@ -3352,6 +3403,21 @@ function iaRegistrarUso(juego) {
   iaGuardar();
 }
 
+// Historial global de últimas respuestas por juego (para evitar repeticiones)
+const iaHistorial = {}; // { math: ['7×8', '3+5', ...], palabras: ['mariposa', ...], ... }
+const IA_HISTORIAL_MAX = 8;
+
+function iaAgregarHistorial(juego, identificador) {
+  if (!iaHistorial[juego]) iaHistorial[juego] = [];
+  iaHistorial[juego].push(identificador);
+  if (iaHistorial[juego].length > IA_HISTORIAL_MAX) iaHistorial[juego].shift();
+}
+
+function iaGetHistorialTexto(juego) {
+  if (!iaHistorial[juego] || iaHistorial[juego].length === 0) return 'ninguna aún';
+  return iaHistorial[juego].join(', ');
+}
+
 // Función genérica para pedir ejercicios por IA a cualquier juego
 async function iaFetch(systemPrompt, userPrompt, juego) {
   // Visual feedback while IA loads
@@ -3360,14 +3426,23 @@ async function iaFetch(systemPrompt, userPrompt, juego) {
     loadingToast.textContent = '🤖 IA pensando...';
     loadingToast.classList.add('show');
   }
+
+  // Inject anti-repetition context into system prompt
+  const historialTexto = iaGetHistorialTexto(juego);
+  const randomSeed = Math.random().toString(36).substring(2, 10);
+  const enrichedSystem = systemPrompt +
+    '\n\nIMPORTANTE - EVITAR REPETICIÓN: Las últimas preguntas/ejercicios de este juego fueron: [' + historialTexto + ']. ' +
+    'NO repitas NINGUNA de ellas ni una variante muy similar. Genera algo COMPLETAMENTE diferente. ' +
+    'Token de variabilidad aleatorio: ' + randomSeed + ' (úsalo como semilla mental para forzar variación).';
+
   try {
     const response = await fetch('/.netlify/functions/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         max_tokens: 800,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
+        system: enrichedSystem,
+        messages: [{ role: 'user', content: userPrompt + ' [seed: ' + randomSeed + ']' }]
       })
     });
     if (!response.ok) {
@@ -3397,6 +3472,68 @@ function engIniciar() {
   document.getElementById('engExercise').style.display = 'none';
   document.getElementById('engLoading').style.display = 'none';
   document.getElementById('engError').style.display = 'none';
+  // Actualizar contador del diccionario
+  const dic = engGetDiccionario();
+  const count = document.getElementById('engDicCount');
+  if (count) count.textContent = dic.length;
+  // Ocultar modo Pronuncia si el navegador no soporta reconocimiento de voz
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const speakCard = document.getElementById('engSpeakCard');
+  if (speakCard && !SR) speakCard.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+// MI DICCIONARIO — palabras aprendidas (localStorage)
+// ═══════════════════════════════════════════════
+
+function engGetDiccionario() {
+  try { return JSON.parse(localStorage.getItem('engDic') || '[]'); }
+  catch(e) { return []; }
+}
+
+function engAgregarDiccionario(en, es) {
+  if (!en) return;
+  const palabra = en.trim();
+  // Solo palabras cortas (1-2 palabras), no oraciones completas
+  if (palabra.split(' ').length > 2) return;
+  const dic = engGetDiccionario();
+  const key = palabra.toLowerCase();
+  if (dic.some(w => w.en.toLowerCase() === key)) return;
+  dic.push({ en: palabra, es: (es || '').trim() });
+  localStorage.setItem('engDic', JSON.stringify(dic));
+  const count = document.getElementById('engDicCount');
+  if (count) count.textContent = dic.length;
+  showToast('📖 +1 palabra nueva: ' + palabra);
+}
+
+function engToggleDiccionario() {
+  const panel = document.getElementById('engDicPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    const dic = engGetDiccionario();
+    const lista = document.getElementById('engDicLista');
+    lista.innerHTML = '';
+    if (dic.length === 0) {
+      lista.innerHTML = '<p style="color:var(--morado-claro); font-size:.9rem;">Aún no tienes palabras. ¡Juega y acierta para llenar tu diccionario! 🌟</p>';
+    } else {
+      dic.forEach(w => {
+        const chip = document.createElement('div');
+        chip.style.cssText = 'display:inline-flex; align-items:center; gap:6px; background:white; border:2px solid var(--borde); border-radius:999px; padding:6px 12px; font-size:.85rem;';
+        const texto = document.createElement('span');
+        texto.innerHTML = '<strong style="color:var(--morado);">' + w.en + '</strong>' + (w.es ? ' <span style="color:var(--morado-claro);">= ' + w.es + '</span>' : '');
+        const btn = document.createElement('button');
+        btn.textContent = '🔊';
+        btn.style.cssText = 'border:none; background:none; cursor:pointer; font-size:1rem; padding:0;';
+        btn.onclick = () => engHablar(w.en, 'en-US');
+        chip.appendChild(texto);
+        chip.appendChild(btn);
+        lista.appendChild(chip);
+      });
+    }
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -3415,16 +3552,38 @@ function engHablar(text, lang) {
 }
 
 // ═══════════════════════════════════════════════
+// BANCO DE PALABRAS COMPARTIDO (usa MP_ENGLISH_MEMORY_BANK: 108 palabras temáticas)
+// ═══════════════════════════════════════════════
+
+let engBancoUsados = [];
+
+function engBancoAleatorio() {
+  const todos = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) {
+    MP_ENGLISH_MEMORY_BANK[tema].forEach(item => todos.push({ ...item, tema }));
+  }
+  if (engBancoUsados.length >= todos.length) engBancoUsados = [];
+  let item;
+  do {
+    item = todos[Math.floor(Math.random() * todos.length)];
+  } while (engBancoUsados.includes(item.en));
+  engBancoUsados.push(item.en);
+  return item;
+}
+
+// ═══════════════════════════════════════════════
 // SELECCIÓN DE EJERCICIO (LOCAL o IA)
 // ═══════════════════════════════════════════════
 
 async function engPedir(mode) {
   iniciarAudio();
+  // Guardar el modo ORIGINAL que el usuario eligió (para que "random" siga siendo random)
+  engOriginalMode = mode;
   engCurrentMode = mode;
   engAnswered = false;
 
   if (mode === 'random') {
-    const modos = ['translate','complete','vocabulary','conversation','listen'];
+    const modos = ['translate','complete','vocabulary','conversation','listen','spelling','emojiWord'];
     mode = modos[Math.floor(Math.random() * modos.length)];
     engCurrentMode = mode;
   }
@@ -3435,6 +3594,11 @@ async function engPedir(mode) {
   document.getElementById('engError').style.display = 'none';
   document.getElementById('engLoading').style.display = 'block';
 
+  // Modos locales especiales (usan el banco de 108 palabras, sin IA, respuesta inmediata)
+  if (mode === 'spelling') { engSpellingNuevo(); return; }
+  if (mode === 'emojiWord') { engEmojiNuevo(); return; }
+  if (mode === 'speak') { engSpeakNuevo(); return; }
+
   // Decide: local or IA
   if (iaPuedeUsar('ingles')) {
     document.getElementById('engLoadingText').textContent = '🤖 La IA está creando tu ejercicio...';
@@ -3444,6 +3608,304 @@ async function engPedir(mode) {
     await new Promise(r => setTimeout(r, 300));
     engPedirLocal(mode);
   }
+}
+
+// ═══════════════════════════════════════════════
+// MODO DELETREO (SPELLING BEE) 🐝
+// ═══════════════════════════════════════════════
+
+function engSpellingNuevo() {
+  const item = engBancoAleatorio();
+  engCurrentData = { spelling: true, en: item.en, es: item.es, emoji: item.emoji };
+  engAnswered = false;
+
+  document.getElementById('engLoading').style.display = 'none';
+  document.getElementById('engExercise').style.display = 'block';
+  document.getElementById('engCategory').textContent = '🐝 Deletreo (Spelling Bee)';
+  document.getElementById('engInstruction').textContent = 'Escucha la palabra en inglés y escríbela. ¡Cuidado con las letras!';
+
+  const promptBox = document.getElementById('engPromptBox');
+  promptBox.innerHTML = '';
+  const emojiDiv = document.createElement('div');
+  emojiDiv.textContent = item.emoji;
+  emojiDiv.style.fontSize = '3rem';
+  promptBox.appendChild(emojiDiv);
+  const pista = document.createElement('div');
+  pista.textContent = 'Pista: ' + item.es;
+  pista.style.cssText = 'font-size:.9rem; color:var(--morado-claro); margin-top:4px;';
+  promptBox.appendChild(pista);
+  const speakBtn = document.createElement('button');
+  speakBtn.className = 'eng-speak-btn';
+  speakBtn.innerHTML = '🔊 Escuchar palabra';
+  speakBtn.style.marginTop = '10px';
+  speakBtn.onclick = () => engHablar(item.en, 'en-US');
+  promptBox.appendChild(speakBtn);
+
+  const area = document.getElementById('engAnswerArea');
+  area.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.id = 'engSpellingInput';
+  input.className = 'eng-text-input';
+  input.placeholder = 'Escribe la palabra en inglés...';
+  input.autocomplete = 'off';
+  input.autocapitalize = 'none';
+  input.onkeydown = (e) => { if (e.key === 'Enter') engSpellingCheck(); };
+  area.appendChild(input);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex; gap:8px; justify-content:center; margin-top:8px;';
+  const checkBtn = document.createElement('button');
+  checkBtn.className = 'btn btn-primary';
+  checkBtn.textContent = '✨ Comprobar';
+  checkBtn.onclick = engSpellingCheck;
+  const revealBtn = document.createElement('button');
+  revealBtn.className = 'btn btn-ghost btn-sm';
+  revealBtn.textContent = '👀 Ver respuesta';
+  revealBtn.onclick = engSpellingRevelar;
+  btnRow.appendChild(checkBtn);
+  btnRow.appendChild(revealBtn);
+  area.appendChild(btnRow);
+
+  const resEl = document.getElementById('engResultado');
+  resEl.textContent = '';
+  resEl.className = 'resultado';
+  document.getElementById('engExplanation').style.display = 'none';
+
+  // Auto-pronunciar la palabra al empezar
+  setTimeout(() => engHablar(item.en, 'en-US'), 500);
+  setTimeout(() => input.focus(), 300);
+  sonido('match');
+}
+
+function engSpellingCheck() {
+  if (engAnswered) return;
+  const input = document.getElementById('engSpellingInput');
+  if (!input) return;
+  const d = engCurrentData;
+  const resp = input.value.trim().toLowerCase();
+  const correcta = d.en.toLowerCase();
+  const resEl = document.getElementById('engResultado');
+
+  if (resp === correcta) {
+    engAnswered = true;
+    engRacha++;
+    const pts = 15 + engRacha * 2; // Deletreo da más puntos (es más difícil)
+    engPuntosTotal += pts;
+    document.getElementById('engRacha').textContent = engRacha;
+    document.getElementById('engPuntos').textContent = engPuntosTotal;
+    resEl.textContent = '✅ Perfect spelling! +' + pts + ' puntos 🌟';
+    resEl.className = 'resultado correcto';
+    sumarEstrellas(4);
+    sonido('correcto');
+    engAgregarDiccionario(d.en, d.es);
+    engHablar(d.en, 'en-US');
+    if (engRacha % 5 === 0) { showToast('🔥 Spelling streak: ' + engRacha + '!'); lanzarConfetti(); }
+    decir('🎉 Great spelling! ¡Escribiste perfecto!');
+  } else if (resp === '') {
+    resEl.textContent = '✏️ Escribe la palabra primero';
+    resEl.className = 'resultado';
+  } else {
+    // Feedback parcial: cuántas letras van bien desde el inicio
+    let bien = 0;
+    for (let i = 0; i < Math.min(resp.length, correcta.length); i++) {
+      if (resp[i] === correcta[i]) bien++; else break;
+    }
+    resEl.textContent = '❌ Casi... las primeras ' + bien + ' letras van bien. ¡Escucha otra vez! 🔊';
+    resEl.className = 'resultado incorrecto';
+    sonido('error');
+    engHablar(engCurrentData.en, 'en-US');
+  }
+}
+
+function engSpellingRevelar() {
+  if (engAnswered) return;
+  engAnswered = true;
+  engRacha = 0;
+  document.getElementById('engRacha').textContent = 0;
+  const d = engCurrentData;
+  const resEl = document.getElementById('engResultado');
+  resEl.textContent = '👀 Se escribe: "' + d.en + '" (' + d.es + ')';
+  resEl.className = 'resultado';
+  const input = document.getElementById('engSpellingInput');
+  if (input) input.value = d.en;
+  engHablar(d.en, 'en-US');
+}
+
+// ═══════════════════════════════════════════════
+// MODO EMOJI WORD 🖼️ — ve la imagen, elige la palabra
+// ═══════════════════════════════════════════════
+
+function engEmojiNuevo() {
+  const item = engBancoAleatorio();
+  // 3 distractores en inglés del banco
+  const todos = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) todos.push(...MP_ENGLISH_MEMORY_BANK[tema]);
+  const distractores = todos.filter(x => x.en !== item.en).map(x => x.en);
+  const opciones = new Set([item.en]);
+  while (opciones.size < 4 && distractores.length > 0) {
+    const idx = Math.floor(Math.random() * distractores.length);
+    opciones.add(distractores[idx]);
+    distractores.splice(idx, 1);
+  }
+  const opcionesArr = [...opciones].sort(() => Math.random() - .5);
+
+  engCurrentData = {
+    category: '🖼️ Emoji Word — Tema: ' + item.tema,
+    instruction: '¿Cómo se dice en inglés lo que ves en la imagen?',
+    prompt: item.emoji,
+    bigPrompt: true,
+    options: opcionesArr,
+    correct: opcionesArr.indexOf(item.en),
+    explanation: '"' + item.en + '" = ' + item.es + '. ¡Escucha cómo se pronuncia!',
+    speakText: item.en,
+    speakAnswer: item.en
+  };
+  engMostrarEjercicio();
+}
+
+// ═══════════════════════════════════════════════
+// MODO PRONUNCIA 🎤 — reconocimiento de voz
+// ═══════════════════════════════════════════════
+
+let engSpeakRec = null;
+
+function engSpeakNuevo() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('engLoading').style.display = 'none';
+    document.getElementById('engError').style.display = 'block';
+    document.getElementById('engErrorText').textContent = 'Tu navegador no soporta el micrófono. Prueba en Chrome 🎤';
+    return;
+  }
+
+  const item = engBancoAleatorio();
+  engCurrentData = { speak: true, en: item.en, es: item.es, emoji: item.emoji };
+  engAnswered = false;
+
+  document.getElementById('engLoading').style.display = 'none';
+  document.getElementById('engExercise').style.display = 'block';
+  document.getElementById('engCategory').textContent = '🎤 Pronuncia (Say it!)';
+  document.getElementById('engInstruction').textContent = 'Presiona el micrófono y di la palabra en inglés en voz alta:';
+
+  const promptBox = document.getElementById('engPromptBox');
+  promptBox.innerHTML = '';
+  const emojiDiv = document.createElement('div');
+  emojiDiv.textContent = item.emoji;
+  emojiDiv.style.fontSize = '3rem';
+  promptBox.appendChild(emojiDiv);
+  const wordDiv = document.createElement('div');
+  wordDiv.textContent = item.en;
+  wordDiv.style.cssText = 'font-size:1.8rem; font-weight:800; color:var(--morado); font-family:\'Baloo 2\',sans-serif;';
+  promptBox.appendChild(wordDiv);
+  const esDiv = document.createElement('div');
+  esDiv.textContent = '(' + item.es + ')';
+  esDiv.style.cssText = 'font-size:.9rem; color:var(--morado-claro);';
+  promptBox.appendChild(esDiv);
+  const speakBtn = document.createElement('button');
+  speakBtn.className = 'eng-speak-btn';
+  speakBtn.innerHTML = '🔊 Escuchar ejemplo';
+  speakBtn.style.marginTop = '10px';
+  speakBtn.onclick = () => engHablar(item.en, 'en-US');
+  promptBox.appendChild(speakBtn);
+
+  const area = document.getElementById('engAnswerArea');
+  area.innerHTML = '';
+  const micBtn = document.createElement('button');
+  micBtn.className = 'btn btn-primary btn-lg';
+  micBtn.id = 'engMicBtn';
+  micBtn.innerHTML = '🎤 Presiona y habla';
+  micBtn.style.cssText = 'display:block; margin: 10px auto;';
+  micBtn.onclick = engSpeakEscuchar;
+  area.appendChild(micBtn);
+  const hint = document.createElement('p');
+  hint.style.cssText = 'text-align:center; font-size:.82rem; color:var(--morado-claro);';
+  hint.textContent = 'Habla claro y cerca del micrófono 😊';
+  area.appendChild(hint);
+
+  const resEl = document.getElementById('engResultado');
+  resEl.textContent = '';
+  resEl.className = 'resultado';
+  document.getElementById('engExplanation').style.display = 'none';
+
+  // Pronunciar el ejemplo al inicio
+  setTimeout(() => engHablar(item.en, 'en-US'), 500);
+  sonido('match');
+}
+
+function engSpeakEscuchar() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || engAnswered) return;
+
+  const micBtn = document.getElementById('engMicBtn');
+  const resEl = document.getElementById('engResultado');
+
+  try { if (engSpeakRec) engSpeakRec.abort(); } catch(e) {}
+
+  engSpeakRec = new SR();
+  engSpeakRec.lang = 'en-US';
+  engSpeakRec.interimResults = false;
+  engSpeakRec.maxAlternatives = 3;
+
+  micBtn.innerHTML = '👂 Escuchando...';
+  micBtn.disabled = true;
+  resEl.textContent = '';
+
+  engSpeakRec.onresult = (event) => {
+    micBtn.innerHTML = '🎤 Presiona y habla';
+    micBtn.disabled = false;
+    const d = engCurrentData;
+    const objetivo = d.en.toLowerCase().trim();
+    // Revisar todas las alternativas que devuelve el reconocedor
+    let acierto = false;
+    let escuchado = '';
+    for (let i = 0; i < event.results[0].length; i++) {
+      const transcript = event.results[0][i].transcript.toLowerCase().trim();
+      if (i === 0) escuchado = transcript;
+      if (transcript.includes(objetivo) || objetivo.includes(transcript)) { acierto = true; break; }
+    }
+
+    if (acierto) {
+      engAnswered = true;
+      engRacha++;
+      const pts = 20 + engRacha * 2; // Pronunciar da los puntos más altos
+      engPuntosTotal += pts;
+      document.getElementById('engRacha').textContent = engRacha;
+      document.getElementById('engPuntos').textContent = engPuntosTotal;
+      resEl.textContent = '✅ Excellent pronunciation! +' + pts + ' puntos 🌟';
+      resEl.className = 'resultado correcto';
+      sumarEstrellas(5);
+      sonido('correcto');
+      lanzarConfetti();
+      engAgregarDiccionario(d.en, d.es);
+      decir('🎉 Amazing! ¡Pronunciaste "' + d.en + '" perfecto!');
+    } else {
+      resEl.textContent = '👂 Escuché: "' + escuchado + '". ¡Intenta otra vez! Escucha el ejemplo 🔊';
+      resEl.className = 'resultado incorrecto';
+      sonido('error');
+      engHablar(engCurrentData.en, 'en-US');
+    }
+  };
+
+  engSpeakRec.onerror = (event) => {
+    micBtn.innerHTML = '🎤 Presiona y habla';
+    micBtn.disabled = false;
+    if (event.error === 'not-allowed') {
+      resEl.textContent = '🎤 Necesitas dar permiso al micrófono en el navegador';
+    } else {
+      resEl.textContent = '👂 No te escuché bien, intenta de nuevo';
+    }
+    resEl.className = 'resultado';
+  };
+
+  engSpeakRec.onend = () => {
+    if (micBtn.disabled) {
+      micBtn.innerHTML = '🎤 Presiona y habla';
+      micBtn.disabled = false;
+    }
+  };
+
+  engSpeakRec.start();
 }
 
 // ═══════════════════════════════════════════════
@@ -3487,43 +3949,34 @@ function engPedirLocal(mode) {
 // ═══════════════════════════════════════════════
 
 async function engPedirIA(mode) {
+  const temas = ['animales', 'comida', 'colores', 'familia', 'escuela', 'cuerpo humano', 'ropa', 'clima', 'transporte', 'naturaleza', 'casa', 'deportes', 'juguetes', 'emociones', 'profesiones', 'días de la semana', 'meses', 'números', 'instrumentos musicales', 'frutas tropicales', 'verduras', 'mascotas', 'útiles escolares', 'partes de la cara', 'acciones diarias'];
+  const temaAleatorio = temas[Math.floor(Math.random() * temas.length)];
+  const palabraAleatoria = ['horse','rain','book','clock','flower','star','river','mountain','bird','fish','tree','door','chair','cloud','sand','beach','garden','kitchen','candle','mirror','bridge','forest','desert','island','volcano','train','plane','rocket','crown','sword'];
+  const wordHint = palabraAleatoria[Math.floor(Math.random() * palabraAleatoria.length)];
+
   const promptMap = {
-    translate: 'Crea un ejercicio de traducción español→inglés para un niño de 8-9 años. Oración corta en español, 4 opciones en inglés.',
-    complete: 'Crea un ejercicio de completar oración en inglés para un niño de 8-9 años. Oración con _____, 4 opciones.',
-    vocabulary: 'Crea un ejercicio de vocabulario inglés para un niño de 8-9 años. Palabra en inglés, 4 opciones en español.',
-    conversation: 'Crea un ejercicio de conversación en inglés para un niño de 8-9 años. Pregunta en inglés, 4 respuestas posibles.',
-    listen: 'Crea un ejercicio de escucha en inglés para un niño de 8-9 años. Palabra/frase en inglés para escuchar, 4 significados en español.'
+    translate: 'Crea un ejercicio de traducción español→inglés UNICO para un niño de 8-9 años, tema: ' + temaAleatorio + '. Oración corta diferente cada vez en español, 4 opciones en inglés.',
+    complete: 'Crea un ejercicio de completar oración en inglés UNICO para niño de 8-9 años, tema: ' + temaAleatorio + '. Oración con _____, 4 opciones diferentes cada vez.',
+    vocabulary: 'Crea un ejercicio de vocabulario inglés UNICO para niño de 8-9 años. Usa esta palabra específica O similar: "' + wordHint + '". Si la usas, varía. Si no, elige otra palabra del tema: ' + temaAleatorio + '. 4 opciones en español.',
+    conversation: 'Crea un ejercicio de conversación en inglés UNICO para niño de 8-9 años, contexto: ' + temaAleatorio + '. Pregunta DIFERENTE cada vez, 4 respuestas posibles.',
+    listen: 'Crea un ejercicio de escucha en inglés UNICO para niño de 8-9 años. Usa esta palabra: "' + wordHint + '" O elige otra del tema: ' + temaAleatorio + '. La palabra a escuchar debe ser DIFERENTE cada vez. 4 opciones en español.'
   };
 
-  const systemPrompt = `Eres un profesor de inglés divertido para niños hispanohablantes de 8-9 años.
-RESPONDE SOLO con JSON válido (sin markdown, sin backticks):
-{"category":"emoji + tipo","instruction":"instrucción en español","prompt":"ejercicio principal","options":["A","B","C","D"],"correct":0,"explanation":"explicación breve","speakText":"texto inglés para TTS","speakAnswer":"respuesta en inglés para TTS"}
-"correct" es el ÍNDICE (0-3). Sé creativo, varía temas y dificultad.`;
+  const systemPrompt = 'Eres un profesor de inglés divertido para niños hispanohablantes de 8-9 años. ' +
+    'RESPONDE SOLO con JSON válido (sin markdown, sin backticks): ' +
+    '{"category":"emoji + tipo","instruction":"instrucción en español","prompt":"ejercicio principal","options":["A","B","C","D"],"correct":0,"explanation":"explicación breve","speakText":"texto inglés para TTS","speakAnswer":"respuesta en inglés para TTS"}. ' +
+    '"correct" es el ÍNDICE (0-3). Sé MUY creativo, varía SIEMPRE temas, palabras y dificultad.';
 
-  try {
-    const response = await fetch('/.netlify/functions/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        max_tokens: 800,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: promptMap[mode] }]
-      })
-    });
+  const result = await iaFetch(systemPrompt, promptMap[mode], 'ingles');
 
-    if (!response.ok) throw new Error('Status ' + response.status);
-
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message || data.error);
-
-    const text = data.content.map(c => c.text || '').join('');
-    engCurrentData = JSON.parse(text.replace(/```json|```/g, '').trim());
-    iaRegistrarUso('ingles');
+  if (result && result.options && Array.isArray(result.options)) {
+    engCurrentData = result;
+    // Track in global history
+    const identificador = result.speakText || result.prompt || JSON.stringify(result.options).substring(0, 40);
+    iaAgregarHistorial('ingles', identificador);
     engMostrarEjercicio();
-
-  } catch (err) {
-    console.warn('IA fallback to local:', err);
-    // Fallback silencioso al banco local
+  } else {
+    console.warn('IA fallback to local');
     engPedirLocal(mode);
     showToast('📚 Ejercicio del banco local (IA no disponible)');
   }
@@ -3537,6 +3990,9 @@ function engMostrarEjercicio() {
   const d = engCurrentData;
   if (!d) return;
 
+  // Reset completo del estado del ejercicio
+  engAnswered = false;
+
   document.getElementById('engLoading').style.display = 'none';
   document.getElementById('engExercise').style.display = 'block';
   document.getElementById('engCategory').textContent = d.category || '🔤 English';
@@ -3546,6 +4002,7 @@ function engMostrarEjercicio() {
   promptBox.innerHTML = '';
   const promptText = document.createElement('div');
   promptText.textContent = d.prompt || '';
+  if (d.bigPrompt) promptText.style.fontSize = '3.5rem';
   promptBox.appendChild(promptText);
 
   if (d.speakText) {
@@ -3560,6 +4017,7 @@ function engMostrarEjercicio() {
     }
   }
 
+  // Limpiar y reconstruir opciones desde cero (sin clases stale)
   const area = document.getElementById('engAnswerArea');
   area.innerHTML = '';
   const optionsDiv = document.createElement('div');
@@ -3574,9 +4032,19 @@ function engMostrarEjercicio() {
   });
   area.appendChild(optionsDiv);
 
-  document.getElementById('engResultado').textContent = '';
-  document.getElementById('engResultado').className = 'resultado';
-  document.getElementById('engExplanation').style.display = 'none';
+  // Reset visual del resultado y explicación
+  const resEl = document.getElementById('engResultado');
+  resEl.textContent = '';
+  resEl.className = 'resultado';
+  const explEl = document.getElementById('engExplanation');
+  explEl.innerHTML = '';
+  explEl.style.display = 'none';
+
+  // Scroll suave al ejercicio para que el usuario vea el nuevo
+  setTimeout(() => {
+    const ex = document.getElementById('engExercise');
+    if (ex) ex.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 
   decir('🔤 ¡Nuevo ejercicio de inglés! You can do it! 💪');
   sonido('match');
@@ -3594,6 +4062,7 @@ function engResponder(index, btn, container) {
 
   container.querySelectorAll('.eng-option').forEach((b, i) => {
     b.classList.add('disabled');
+    b.disabled = true; // HTML attribute disabled — más robusto que solo CSS
     if (i === correct) b.classList.add('correct');
     if (i === index && !isCorrect) b.classList.add('wrong');
   });
@@ -3608,6 +4077,11 @@ function engResponder(index, btn, container) {
     resultado.className = 'resultado correcto';
     sumarEstrellas(3);
     sonido('correcto');
+    // Guardar en Mi Diccionario (solo palabras cortas, no oraciones)
+    const enWord = d.speakAnswer || d.speakText;
+    let esMeaning = '';
+    if (['vocabulary','listen','emojiWord'].includes(engCurrentMode)) esMeaning = d.options[correct];
+    engAgregarDiccionario(enWord, esMeaning);
     if (engRacha % 5 === 0) {
       showToast('🔥 English streak: ' + engRacha + '!');
       lanzarConfetti();
@@ -3644,6 +4118,19 @@ function engResponder(index, btn, container) {
   if (d.speakAnswer) {
     setTimeout(() => engHablar(d.speakAnswer, 'en-US'), 800);
   }
+
+  // Scroll suave hacia los botones de acción para que sean visibles
+  setTimeout(() => {
+    const actions = document.getElementById('engActions');
+    if (actions) {
+      actions.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight visual para llamar atención al botón "Otro ejercicio"
+      const nextBtn = actions.querySelector('.btn-primary');
+      if (nextBtn) {
+        nextBtn.style.animation = 'eng-pulse-attention 1.2s ease-in-out 2';
+      }
+    }
+  }, 1200);
 }
 
 // ═══════════════════════════════════════════════
@@ -4026,6 +4513,8 @@ function mpIniciarJuego(mode) {
     state = mpGenerarMemoriaState();
   } else if (mode === 'palabrasVs') {
     state = mpGenerarPalabrasState();
+  } else if (mode === 'englishBattle') {
+    state = mpGenerarEnglishBattleState();
   }
 
   mpGameState = state;
@@ -4049,11 +4538,142 @@ function mpGenerarDueloState() {
   };
 }
 
-// --- MEMORIA VS ---
+// --- MEMORIA VS EN INGLÉS ---
+// Banco temático: cada tema tiene emoji + palabra en inglés + significado en español
+const MP_ENGLISH_MEMORY_BANK = {
+  animales: [
+    { emoji: '🐶', en: 'Dog', es: 'Perro' },
+    { emoji: '🐱', en: 'Cat', es: 'Gato' },
+    { emoji: '🦁', en: 'Lion', es: 'León' },
+    { emoji: '🐘', en: 'Elephant', es: 'Elefante' },
+    { emoji: '🦊', en: 'Fox', es: 'Zorro' },
+    { emoji: '🐰', en: 'Rabbit', es: 'Conejo' },
+    { emoji: '🐻', en: 'Bear', es: 'Oso' },
+    { emoji: '🐸', en: 'Frog', es: 'Rana' },
+    { emoji: '🐴', en: 'Horse', es: 'Caballo' },
+    { emoji: '🐮', en: 'Cow', es: 'Vaca' },
+    { emoji: '🐷', en: 'Pig', es: 'Cerdo' },
+    { emoji: '🐔', en: 'Chicken', es: 'Pollo' },
+    { emoji: '🐢', en: 'Turtle', es: 'Tortuga' },
+    { emoji: '🐍', en: 'Snake', es: 'Serpiente' },
+    { emoji: '🦋', en: 'Butterfly', es: 'Mariposa' },
+    { emoji: '🐝', en: 'Bee', es: 'Abeja' },
+    { emoji: '🐬', en: 'Dolphin', es: 'Delfín' },
+    { emoji: '🦈', en: 'Shark', es: 'Tiburón' },
+    { emoji: '🐧', en: 'Penguin', es: 'Pingüino' },
+    { emoji: '🦉', en: 'Owl', es: 'Búho' }
+  ],
+  casa: [
+    { emoji: '🛏️', en: 'Bed', es: 'Cama' },
+    { emoji: '🪑', en: 'Chair', es: 'Silla' },
+    { emoji: '🚪', en: 'Door', es: 'Puerta' },
+    { emoji: '🪟', en: 'Window', es: 'Ventana' },
+    { emoji: '🛋️', en: 'Couch', es: 'Sofá' },
+    { emoji: '📺', en: 'Television', es: 'Televisión' },
+    { emoji: '🕯️', en: 'Candle', es: 'Vela' },
+    { emoji: '🪞', en: 'Mirror', es: 'Espejo' },
+    { emoji: '🚽', en: 'Toilet', es: 'Inodoro' },
+    { emoji: '🛁', en: 'Bathtub', es: 'Bañera' },
+    { emoji: '🚿', en: 'Shower', es: 'Ducha' },
+    { emoji: '🧹', en: 'Broom', es: 'Escoba' },
+    { emoji: '🔑', en: 'Key', es: 'Llave' },
+    { emoji: '📚', en: 'Books', es: 'Libros' },
+    { emoji: '🕰️', en: 'Clock', es: 'Reloj' },
+    { emoji: '💡', en: 'Lamp', es: 'Lámpara' }
+  ],
+  cocina: [
+    { emoji: '🍎', en: 'Apple', es: 'Manzana' },
+    { emoji: '🍌', en: 'Banana', es: 'Plátano' },
+    { emoji: '🍞', en: 'Bread', es: 'Pan' },
+    { emoji: '🧀', en: 'Cheese', es: 'Queso' },
+    { emoji: '🥛', en: 'Milk', es: 'Leche' },
+    { emoji: '🍕', en: 'Pizza', es: 'Pizza' },
+    { emoji: '🍔', en: 'Burger', es: 'Hamburguesa' },
+    { emoji: '🍟', en: 'Fries', es: 'Papas fritas' },
+    { emoji: '🍰', en: 'Cake', es: 'Pastel' },
+    { emoji: '🍪', en: 'Cookie', es: 'Galleta' },
+    { emoji: '🍦', en: 'Ice cream', es: 'Helado' },
+    { emoji: '🥕', en: 'Carrot', es: 'Zanahoria' },
+    { emoji: '🍅', en: 'Tomato', es: 'Tomate' },
+    { emoji: '🍇', en: 'Grapes', es: 'Uvas' },
+    { emoji: '🍓', en: 'Strawberry', es: 'Fresa' },
+    { emoji: '🥚', en: 'Egg', es: 'Huevo' },
+    { emoji: '🍯', en: 'Honey', es: 'Miel' },
+    { emoji: '☕', en: 'Coffee', es: 'Café' }
+  ],
+  ropa: [
+    { emoji: '👕', en: 'T-shirt', es: 'Camiseta' },
+    { emoji: '👖', en: 'Pants', es: 'Pantalones' },
+    { emoji: '👗', en: 'Dress', es: 'Vestido' },
+    { emoji: '👟', en: 'Shoes', es: 'Zapatos' },
+    { emoji: '🧢', en: 'Cap', es: 'Gorra' },
+    { emoji: '🎩', en: 'Hat', es: 'Sombrero' },
+    { emoji: '🧤', en: 'Gloves', es: 'Guantes' },
+    { emoji: '🧦', en: 'Socks', es: 'Calcetines' },
+    { emoji: '🧥', en: 'Coat', es: 'Abrigo' },
+    { emoji: '👚', en: 'Blouse', es: 'Blusa' },
+    { emoji: '🥾', en: 'Boots', es: 'Botas' },
+    { emoji: '👓', en: 'Glasses', es: 'Gafas' }
+  ],
+  transporte: [
+    { emoji: '🚗', en: 'Car', es: 'Carro' },
+    { emoji: '🚌', en: 'Bus', es: 'Autobús' },
+    { emoji: '🚲', en: 'Bike', es: 'Bicicleta' },
+    { emoji: '✈️', en: 'Plane', es: 'Avión' },
+    { emoji: '🚁', en: 'Helicopter', es: 'Helicóptero' },
+    { emoji: '🚂', en: 'Train', es: 'Tren' },
+    { emoji: '🚢', en: 'Boat', es: 'Barco' },
+    { emoji: '🚀', en: 'Rocket', es: 'Cohete' },
+    { emoji: '🛴', en: 'Scooter', es: 'Patineta' },
+    { emoji: '🚓', en: 'Police car', es: 'Patrulla' },
+    { emoji: '🚑', en: 'Ambulance', es: 'Ambulancia' },
+    { emoji: '🚒', en: 'Fire truck', es: 'Bomberos' }
+  ],
+  naturaleza: [
+    { emoji: '☀️', en: 'Sun', es: 'Sol' },
+    { emoji: '🌙', en: 'Moon', es: 'Luna' },
+    { emoji: '⭐', en: 'Star', es: 'Estrella' },
+    { emoji: '☁️', en: 'Cloud', es: 'Nube' },
+    { emoji: '🌈', en: 'Rainbow', es: 'Arcoíris' },
+    { emoji: '🌳', en: 'Tree', es: 'Árbol' },
+    { emoji: '🌻', en: 'Flower', es: 'Flor' },
+    { emoji: '🍃', en: 'Leaf', es: 'Hoja' },
+    { emoji: '🌊', en: 'Wave', es: 'Ola' },
+    { emoji: '🔥', en: 'Fire', es: 'Fuego' },
+    { emoji: '❄️', en: 'Snow', es: 'Nieve' },
+    { emoji: '🌧️', en: 'Rain', es: 'Lluvia' }
+  ],
+  escuela: [
+    { emoji: '📖', en: 'Book', es: 'Libro' },
+    { emoji: '✏️', en: 'Pencil', es: 'Lápiz' },
+    { emoji: '🖊️', en: 'Pen', es: 'Pluma' },
+    { emoji: '📓', en: 'Notebook', es: 'Cuaderno' },
+    { emoji: '🎒', en: 'Backpack', es: 'Mochila' },
+    { emoji: '📐', en: 'Ruler', es: 'Regla' },
+    { emoji: '✂️', en: 'Scissors', es: 'Tijeras' },
+    { emoji: '🖍️', en: 'Crayon', es: 'Crayón' },
+    { emoji: '🗺️', en: 'Map', es: 'Mapa' },
+    { emoji: '🌍', en: 'World', es: 'Mundo' },
+    { emoji: '🖥️', en: 'Computer', es: 'Computadora' },
+    { emoji: '🎨', en: 'Paint', es: 'Pintura' }
+  ]
+};
+
 function mpGenerarMemoriaState() {
+  // Elegir tema aleatorio
+  const temas = Object.keys(MP_ENGLISH_MEMORY_BANK);
+  const temaElegido = temas[Math.floor(Math.random() * temas.length)];
+  const bank = MP_ENGLISH_MEMORY_BANK[temaElegido];
   const pairs = 8;
-  const selected = [...memoryEmojis].sort(() => Math.random() - .5).slice(0, pairs);
-  const cards = [...selected, ...selected].sort(() => Math.random() - .5);
+
+  // Elegir 8 items únicos aleatorios del tema
+  const selected = [...bank].sort(() => Math.random() - .5).slice(0, pairs);
+
+  // Cada par es (emoji + en) que coincide con (es) — pero para memoria simple usamos emoji↔en
+  // Estrategia: las cartas muestran el emoji Y la palabra en inglés, se hacen pares idénticos
+  const items = selected.map(item => ({ display: item.emoji + ' ' + item.en, en: item.en, es: item.es }));
+  const cards = [...items, ...items].sort(() => Math.random() - .5);
+
   return {
     cards,
     revealed: new Array(cards.length).fill(false),
@@ -4062,7 +4682,82 @@ function mpGenerarMemoriaState() {
     turnOrder: Object.keys(mpPlayers),
     turnIndex: 0,
     flippedThisTurn: [],
-    scores: {}
+    scores: {},
+    tema: temaElegido,
+    // Pregunta pendiente después de match
+    pendingQuiz: null
+  };
+}
+
+// --- ENGLISH BATTLE ---
+const MP_ENGLISH_BATTLE_BANK = [
+  { pregunta: '¿Cómo se dice "perro" en inglés?', opciones: ['Cat', 'Dog', 'Bird', 'Fish'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "casa" en inglés?', opciones: ['Home', 'House', 'Room', 'Door'], correcta: 1 },
+  { pregunta: '¿Qué significa "Apple"?', opciones: ['Naranja', 'Manzana', 'Uva', 'Pera'], correcta: 1 },
+  { pregunta: '¿Qué significa "Water"?', opciones: ['Fuego', 'Agua', 'Tierra', 'Aire'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "amigo" en inglés?', opciones: ['Friend', 'Family', 'Father', 'Fun'], correcta: 0 },
+  { pregunta: '¿Qué significa "School"?', opciones: ['Casa', 'Escuela', 'Parque', 'Trabajo'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "libro" en inglés?', opciones: ['Pen', 'Book', 'Bag', 'Desk'], correcta: 1 },
+  { pregunta: '¿Qué significa "Happy"?', opciones: ['Triste', 'Feliz', 'Enojado', 'Cansado'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "azul" en inglés?', opciones: ['Red', 'Green', 'Blue', 'Yellow'], correcta: 2 },
+  { pregunta: '¿Qué significa "Sun"?', opciones: ['Luna', 'Estrella', 'Sol', 'Cielo'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "gato" en inglés?', opciones: ['Cat', 'Cow', 'Car', 'Cap'], correcta: 0 },
+  { pregunta: '¿Qué significa "Mother"?', opciones: ['Padre', 'Madre', 'Hermana', 'Abuela'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "árbol" en inglés?', opciones: ['Grass', 'Flower', 'Tree', 'Leaf'], correcta: 2 },
+  { pregunta: '¿Qué significa "Big"?', opciones: ['Pequeño', 'Grande', 'Alto', 'Bajo'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "leche" en inglés?', opciones: ['Water', 'Juice', 'Milk', 'Bread'], correcta: 2 },
+  { pregunta: '¿Qué significa "Red"?', opciones: ['Azul', 'Verde', 'Amarillo', 'Rojo'], correcta: 3 },
+  { pregunta: '¿Cómo se dice "hola" en inglés?', opciones: ['Bye', 'Hello', 'Please', 'Sorry'], correcta: 1 },
+  { pregunta: '¿Qué significa "Cold"?', opciones: ['Caliente', 'Frío', 'Tibio', 'Fresco'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "escuela" en inglés?', opciones: ['Home', 'Park', 'School', 'Store'], correcta: 2 },
+  { pregunta: '¿Qué significa "Night"?', opciones: ['Día', 'Tarde', 'Mañana', 'Noche'], correcta: 3 },
+  { pregunta: '¿Cómo se dice "pan" en inglés?', opciones: ['Bread', 'Rice', 'Meat', 'Fish'], correcta: 0 },
+  { pregunta: '¿Qué significa "Fast"?', opciones: ['Lento', 'Rápido', 'Fuerte', 'Débil'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "flor" en inglés?', opciones: ['Tree', 'Leaf', 'Flower', 'Grass'], correcta: 2 },
+  { pregunta: '¿Qué significa "Small"?', opciones: ['Grande', 'Mediano', 'Pequeño', 'Enorme'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "sol" en inglés?', opciones: ['Moon', 'Star', 'Sun', 'Sky'], correcta: 2 },
+  { pregunta: '¿Qué significa "Book"?', opciones: ['Pluma', 'Libro', 'Papel', 'Lápiz'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "familia" en inglés?', opciones: ['Friend', 'Family', 'Home', 'Kid'], correcta: 1 },
+  { pregunta: '¿Qué significa "Good"?', opciones: ['Malo', 'Bueno', 'Regular', 'Feo'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "coche" en inglés?', opciones: ['Bus', 'Bike', 'Car', 'Truck'], correcta: 2 },
+  { pregunta: '¿Qué significa "White"?', opciones: ['Negro', 'Blanco', 'Gris', 'Café'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "cumpleaños" en inglés?', opciones: ['Party', 'Birthday', 'Present', 'Cake'], correcta: 1 },
+  { pregunta: '¿Qué significa "Rainbow"?', opciones: ['Lluvia', 'Nube', 'Arcoíris', 'Tormenta'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "hermano" en inglés?', opciones: ['Sister', 'Brother', 'Cousin', 'Uncle'], correcta: 1 },
+  { pregunta: '¿Qué significa "Kitchen"?', opciones: ['Baño', 'Sala', 'Cocina', 'Dormitorio'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "juguete" en inglés?', opciones: ['Game', 'Toy', 'Ball', 'Doll'], correcta: 1 },
+  { pregunta: '¿Qué significa "Beach"?', opciones: ['Montaña', 'Playa', 'Río', 'Bosque'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "lluvia" en inglés?', opciones: ['Snow', 'Wind', 'Rain', 'Storm'], correcta: 2 },
+  { pregunta: '¿Qué significa "Teacher"?', opciones: ['Estudiante', 'Doctor', 'Maestro', 'Director'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "pelota" en inglés?', opciones: ['Bat', 'Ball', 'Bell', 'Bowl'], correcta: 1 },
+  { pregunta: '¿Qué significa "Window"?', opciones: ['Puerta', 'Pared', 'Ventana', 'Techo'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "zapatos" en inglés?', opciones: ['Socks', 'Shoes', 'Shirt', 'Shorts'], correcta: 1 },
+  { pregunta: '¿Qué significa "Hungry"?', opciones: ['Sediento', 'Cansado', 'Hambriento', 'Enfermo'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "estrella" en inglés?', opciones: ['Moon', 'Sun', 'Sky', 'Star'], correcta: 3 },
+  { pregunta: '¿Qué significa "Chair"?', opciones: ['Mesa', 'Silla', 'Cama', 'Sofá'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "abuela" en inglés?', opciones: ['Mother', 'Aunt', 'Grandmother', 'Sister'], correcta: 2 },
+  { pregunta: '¿Qué significa "Strong"?', opciones: ['Débil', 'Fuerte', 'Rápido', 'Alto'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "pájaro" en inglés?', opciones: ['Bird', 'Bear', 'Bee', 'Bat'], correcta: 0 },
+  { pregunta: '¿Qué significa "Green"?', opciones: ['Azul', 'Rojo', 'Verde', 'Morado'], correcta: 2 },
+  { pregunta: '¿Cómo se dice "helado" en inglés?', opciones: ['Cake', 'Cookie', 'Candy', 'Ice cream'], correcta: 3 },
+  { pregunta: '¿Qué significa "Doctor"?', opciones: ['Maestro', 'Doctor', 'Bombero', 'Policía'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "feliz cumpleaños" en inglés?', opciones: ['Good morning', 'Happy birthday', 'Good night', 'Thank you'], correcta: 1 },
+  { pregunta: '¿Qué significa "Slow"?', opciones: ['Rápido', 'Lento', 'Alto', 'Bajo'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "mariposa" en inglés?', opciones: ['Bee', 'Bird', 'Butterfly', 'Beetle'], correcta: 2 },
+  { pregunta: '¿Qué significa "Shoes"?', opciones: ['Calcetines', 'Zapatos', 'Guantes', 'Sombrero'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "queso" en inglés?', opciones: ['Milk', 'Butter', 'Cheese', 'Bread'], correcta: 2 },
+  { pregunta: '¿Qué significa "Playground"?', opciones: ['Escuela', 'Patio de juegos', 'Casa', 'Tienda'], correcta: 1 },
+  { pregunta: '¿Cómo se dice "por favor" en inglés?', opciones: ['Thanks', 'Sorry', 'Please', 'Welcome'], correcta: 2 },
+  { pregunta: '¿Qué significa "Tomorrow"?', opciones: ['Ayer', 'Hoy', 'Mañana', 'Ahora'], correcta: 2 }
+];
+
+function mpGenerarEnglishBattleState() {
+  const questions = [...MP_ENGLISH_BATTLE_BANK].sort(() => Math.random() - .5).slice(0, 15);
+  return {
+    questions,
+    currentQuestion: 0,
+    timeLeft: 90,
+    answered: {} // playerId -> Set of question indexes answered
   };
 }
 
@@ -4094,11 +4789,14 @@ function mpStartGameUI() {
     document.getElementById('mpGameTitle').textContent = '⚡ Duelo Matemático en Vivo';
     mpRenderDueloMath(content);
   } else if (mpGameMode === 'memoriaVs') {
-    document.getElementById('mpGameTitle').textContent = '🧠 Memoria VS';
+    document.getElementById('mpGameTitle').textContent = '🇬🇧 Memoria English';
     mpRenderMemoriaVs(content);
   } else if (mpGameMode === 'palabrasVs') {
     document.getElementById('mpGameTitle').textContent = '📚 Palabras Rápidas';
     mpRenderPalabrasVs(content);
+  } else if (mpGameMode === 'englishBattle') {
+    document.getElementById('mpGameTitle').textContent = '🏆 English Battle';
+    mpRenderEnglishBattle(content);
   }
 
   // Countdown
@@ -4154,6 +4852,18 @@ function mpStartGameTimer() {
     mpGameTimer = setInterval(() => {
       mpGameState.timeLeft--;
       const timer = document.getElementById('mpPalabrasTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        mpEndGame();
+      }
+    }, 1000);
+  } else if (mpGameMode === 'englishBattle') {
+    mpGameState.timeLeft = 90;
+    mpShowEnglishBattleQuestion();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const timer = document.getElementById('mpEnglishTimer');
       if (timer) timer.textContent = mpGameState.timeLeft + 's';
       if (mpGameState.timeLeft <= 0) {
         clearInterval(mpGameTimer);
@@ -4243,12 +4953,15 @@ function mpDueloResponder(answer) {
 
 // --- MEMORIA VS UI ---
 function mpRenderMemoriaVs(container) {
+  const tema = mpGameState && mpGameState.tema ? mpGameState.tema : '';
+  const temaLabel = tema ? ' — Tema: ' + tema.charAt(0).toUpperCase() + tema.slice(1) : '';
   container.innerHTML = `
     <div class="mp-game-inner">
       <div style="text-align:center; font-weight:700; color:var(--morado); margin-bottom:12px;">
         Turno de: <span id="mpMemTurnName">...</span> <span id="mpMemTurnAvatar"></span>
+        <div style="font-size:.85rem; color:var(--morado-claro); margin-top:4px;">🇬🇧 Memoria en inglés${temaLabel}</div>
       </div>
-      <div class="memory-grid" id="mpMemGrid" style="max-width:420px; margin:0 auto;"></div>
+      <div class="memory-grid" id="mpMemGrid" style="max-width:520px; margin:0 auto;"></div>
       <p class="resultado" id="mpMemResultado" style="text-align:center; margin-top:12px;"></p>
     </div>
   `;
@@ -4267,11 +4980,25 @@ function mpShowMemoriaBoard() {
   if (turnAvatar) turnAvatar.textContent = turnPlayer ? turnPlayer.avatar : '';
 
   grid.innerHTML = '';
-  mpGameState.cards.forEach((emoji, i) => {
+  mpGameState.cards.forEach((card, i) => {
     const cell = document.createElement('div');
     const isRevealed = mpGameState.revealed[i] || mpGameState.matched[i];
     cell.className = 'memory-cell' + (isRevealed ? '' : ' hidden-card') + (mpGameState.matched[i] ? ' matched' : '');
-    if (isRevealed) cell.textContent = emoji;
+    if (isRevealed) {
+      // Formato: emoji arriba, palabra en inglés abajo
+      cell.style.display = 'flex';
+      cell.style.flexDirection = 'column';
+      cell.style.alignItems = 'center';
+      cell.style.justifyContent = 'center';
+      cell.style.padding = '4px';
+      cell.style.fontSize = '.85rem';
+      cell.style.textAlign = 'center';
+      cell.style.lineHeight = '1.1';
+      cell.innerHTML = '<div style="font-size:1.6rem;">' + (card.display ? card.display.split(' ')[0] : card) + '</div>' +
+                       '<div style="font-size:.75rem; font-weight:700; color:var(--morado);">' + (card.en || '') + '</div>';
+    } else {
+      cell.textContent = '';
+    }
     if (!mpGameState.matched[i] && !mpGameState.revealed[i]) {
       cell.onclick = () => mpMemFlip(i);
       cell.style.cursor = isMyTurn ? 'pointer' : 'not-allowed';
@@ -4309,22 +5036,14 @@ function mpMemFlip(index) {
   }
 }
 
-function mpCleanMemState() {
-  return {
-    cards: mpGameState.cards,
-    revealed: [...mpGameState.revealed],
-    matched: [...mpGameState.matched],
-    currentTurn: mpGameState.currentTurn,
-    turnOrder: mpGameState.turnOrder,
-    turnIndex: mpGameState.turnIndex,
-    flippedThisTurn: [...mpGameState.flippedThisTurn],
-    scores: mpGameState.scores || {}
-  };
-}
-
 function mpMemCheckPair() {
   const [a, b] = mpGameState.flippedThisTurn;
-  const match = mpGameState.cards[a] === mpGameState.cards[b];
+  const cardA = mpGameState.cards[a];
+  const cardB = mpGameState.cards[b];
+  // Compare by English word (since cards may be strings or objects)
+  const keyA = (cardA && cardA.en) ? cardA.en : cardA;
+  const keyB = (cardB && cardB.en) ? cardB.en : cardB;
+  const match = keyA === keyB;
 
   if (match) {
     mpGameState.matched[a] = true;
@@ -4334,6 +5053,11 @@ function mpMemCheckPair() {
     mpGameState.scores[turner] = (mpGameState.scores[turner] || 0) + 1;
     if (mpPlayers[turner]) mpPlayers[turner].score = (mpPlayers[turner].score || 0) + 10;
     sonido('match');
+
+    // Prepare English quiz for the matched pair (only for memoriaVs mode)
+    if (mpGameMode === 'memoriaVs' && cardA && cardA.en && cardA.es) {
+      mpGameState.pendingQuiz = mpGenerarQuizIngles(cardA.en, cardA.es);
+    }
   } else {
     mpGameState.revealed[a] = false;
     mpGameState.revealed[b] = false;
@@ -4348,6 +5072,141 @@ function mpMemCheckPair() {
     mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
     mpRenderPlayers();
     mpShowMemoriaBoard();
+
+    // Trigger quiz on match
+    if (match && mpGameState.pendingQuiz) {
+      setTimeout(() => mpMostrarQuizIngles(), 600);
+    }
+  }
+}
+
+// Generar una mini-pregunta de inglés (opciones múltiples)
+function mpGenerarQuizIngles(palabraEn, significadoCorrecto) {
+  // Recolectar significados en español distractores desde el bank
+  const todosLosItems = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) {
+    todosLosItems.push(...MP_ENGLISH_MEMORY_BANK[tema]);
+  }
+  const distractores = todosLosItems
+    .filter(item => item.es !== significadoCorrecto)
+    .map(item => item.es);
+  // Elegir 3 distractores aleatorios únicos
+  const opciones = new Set([significadoCorrecto]);
+  const distractoresUnicos = [...new Set(distractores)];
+  while (opciones.size < 4 && distractoresUnicos.length > 0) {
+    const idx = Math.floor(Math.random() * distractoresUnicos.length);
+    opciones.add(distractoresUnicos[idx]);
+    distractoresUnicos.splice(idx, 1);
+  }
+  const opcionesArray = [...opciones].sort(() => Math.random() - .5);
+  const correctIndex = opcionesArray.indexOf(significadoCorrecto);
+  return { palabraEn, opciones: opcionesArray, correcta: correctIndex, jugador: mpGameState.currentTurn };
+}
+
+function mpCleanMemState() {
+  return {
+    cards: mpGameState.cards,
+    revealed: [...mpGameState.revealed],
+    matched: [...mpGameState.matched],
+    currentTurn: mpGameState.currentTurn,
+    turnOrder: mpGameState.turnOrder,
+    turnIndex: mpGameState.turnIndex,
+    flippedThisTurn: [...mpGameState.flippedThisTurn],
+    scores: mpGameState.scores || {},
+    tema: mpGameState.tema,
+    pendingQuiz: mpGameState.pendingQuiz
+  };
+}
+
+// Mostrar quiz de inglés overlay tras un match en Memoria VS
+function mpMostrarQuizIngles() {
+  const quiz = mpGameState && mpGameState.pendingQuiz;
+  if (!quiz) return;
+
+  // Solo el jugador que hizo match puede responder; los demás ven "esperando..."
+  const myId = mpIsHost ? 'host' : mpMyId;
+  const esMiTurno = quiz.jugador === myId;
+  const jugadorNombre = mpPlayers[quiz.jugador] ? mpPlayers[quiz.jugador].name : 'Alguien';
+  const jugadorAvatar = mpPlayers[quiz.jugador] ? mpPlayers[quiz.jugador].avatar : '';
+
+  // Broadcast a los clientes que muestren el quiz
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'showQuiz', quiz, jugadorNombre, jugadorAvatar });
+  }
+
+  // Crear/mostrar el overlay
+  let overlay = document.getElementById('mpQuizOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mpQuizOverlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.55); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+
+  if (esMiTurno) {
+    let optionsHtml = '';
+    quiz.opciones.forEach((op, i) => {
+      optionsHtml += '<button class="btn btn-primary" style="margin:5px; padding:12px 18px; font-size:1rem;" onclick="mpResponderQuiz(' + i + ')">' + op + '</button>';
+    });
+    overlay.innerHTML = '<div class="card" style="max-width:420px; text-align:center;">' +
+      '<div style="font-size:.9rem; color:var(--morado-claro); margin-bottom:8px;">🎉 ¡Match! ' + jugadorAvatar + ' ' + jugadorNombre + ' - responde para ganar bonus:</div>' +
+      '<h3 style="font-family:\'Baloo 2\',sans-serif; color:var(--morado); margin:8px 0;">¿Qué significa <span style="color:var(--coral)">"' + quiz.palabraEn + '"</span>?</h3>' +
+      '<button class="eng-speak-btn" onclick="engHablar(\'' + quiz.palabraEn.replace(/'/g, "\\'") + '\', \'en-US\')">🔊 Escuchar</button>' +
+      '<div style="display:flex; flex-wrap:wrap; justify-content:center; margin-top:12px;">' + optionsHtml + '</div>' +
+      '<p id="mpQuizFeedback" class="resultado" style="text-align:center; margin-top:10px;"></p>' +
+      '</div>';
+  } else {
+    overlay.innerHTML = '<div class="card" style="max-width:400px; text-align:center;">' +
+      '<div style="font-size:2.5rem; margin-bottom:10px;">' + jugadorAvatar + '</div>' +
+      '<h3 style="font-family:\'Baloo 2\',sans-serif; color:var(--morado); margin-bottom:8px;">' + jugadorNombre + ' está respondiendo...</h3>' +
+      '<div style="font-size:1.1rem; color:var(--morado-claro);">¿Qué significa <span style="color:var(--coral); font-weight:700;">"' + quiz.palabraEn + '"</span>?</div>' +
+      '<div style="margin-top:16px; font-size:.85rem; color:var(--morado-claro);">⏳ Esperando respuesta...</div>' +
+      '</div>';
+  }
+
+  // Todos escuchan la pronunciación de la palabra
+  setTimeout(() => engHablar(quiz.palabraEn, 'en-US'), 400);
+}
+
+function mpCerrarQuizOverlay() {
+  const overlay = document.getElementById('mpQuizOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function mpResponderQuiz(index) {
+  const quiz = mpGameState && mpGameState.pendingQuiz;
+  if (!quiz) return;
+  const myId = mpIsHost ? 'host' : mpMyId;
+  if (quiz.jugador !== myId) return;
+
+  const feedback = document.getElementById('mpQuizFeedback');
+  const isCorrect = index === quiz.correcta;
+
+  if (isCorrect) {
+    if (feedback) { feedback.textContent = '✅ ¡Correct! +5 bonus'; feedback.className = 'resultado correcto'; }
+    sonido('correcto');
+  } else {
+    if (feedback) { feedback.textContent = '❌ Era: ' + quiz.opciones[quiz.correcta]; feedback.className = 'resultado incorrecto'; }
+    sonido('error');
+  }
+
+  // Enviar respuesta al host
+  if (mpIsHost) {
+    if (isCorrect) {
+      mpPlayers['host'].score = (mpPlayers['host'].score || 0) + 5;
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      mpRenderPlayers();
+    }
+    // Limpiar pending quiz
+    mpGameState.pendingQuiz = null;
+    setTimeout(() => {
+      mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'closeQuiz', state: mpCleanMemState() });
+      mpCerrarQuizOverlay();
+    }, 1200);
+  } else {
+    mpSendToHost({ type: 'answer', mode: 'memoriaVs', playerId: mpMyId, action: 'quizAnswer', correct: isCorrect });
+    setTimeout(mpCerrarQuizOverlay, 1200);
   }
 }
 
@@ -4424,6 +5283,144 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// --- ENGLISH BATTLE UI ---
+let mpEnglishBattleAnswered = false;
+
+function mpRenderEnglishBattle(container) {
+  container.innerHTML = `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpEnglishTimer">90</span>s
+      </div>
+      <div style="text-align:center; font-size:.9rem; color:var(--morado); margin-bottom:10px;">
+        Pregunta <span id="mpEnglishQNum">1</span>/15
+      </div>
+      <div id="mpEnglishQuestion" class="math-problem" style="font-size:1.2rem; padding:14px; text-align:center;">...</div>
+      <div id="mpEnglishOptions" class="math-options" style="margin-top:12px;"></div>
+      <p class="resultado" id="mpEnglishResultado" style="text-align:center; margin-top:10px;"></p>
+      <div style="text-align:center; margin-top:8px; font-size:.85rem; color:var(--morado-claro);">
+        🔥 Tu racha: <span id="mpEnglishStreak">0</span>
+      </div>
+    </div>
+  `;
+}
+
+let mpEnglishStreak = 0;
+
+function mpShowEnglishBattleQuestion() {
+  mpEnglishBattleAnswered = false;
+  if (!mpGameState || !mpGameState.questions) return;
+
+  // Loop if we run out
+  if (mpGameState.currentQuestion >= mpGameState.questions.length) {
+    mpGameState.currentQuestion = 0;
+    mpGameState.questions = [...MP_ENGLISH_BATTLE_BANK].sort(() => Math.random() - .5);
+  }
+
+  const q = mpGameState.questions[mpGameState.currentQuestion];
+  const qEl = document.getElementById('mpEnglishQuestion');
+  const qNumEl = document.getElementById('mpEnglishQNum');
+  const optsContainer = document.getElementById('mpEnglishOptions');
+  const resEl = document.getElementById('mpEnglishResultado');
+
+  if (qEl) {
+    qEl.textContent = q.pregunta;
+    // Si la pregunta contiene una palabra en inglés entre comillas, agregar botón de audio
+    const citada = q.pregunta.match(/"([^"]+)"/);
+    if (citada && /significa/i.test(q.pregunta)) {
+      const audioBtn = document.createElement('button');
+      audioBtn.className = 'eng-speak-btn';
+      audioBtn.innerHTML = '🔊';
+      audioBtn.style.marginLeft = '8px';
+      audioBtn.onclick = (e) => { e.stopPropagation(); engHablar(citada[1], 'en-US'); };
+      qEl.appendChild(audioBtn);
+      // Auto-pronunciar la palabra
+      setTimeout(() => engHablar(citada[1], 'en-US'), 300);
+    }
+  }
+  if (qNumEl) qNumEl.textContent = (mpGameState.currentQuestion + 1);
+  if (resEl) { resEl.textContent = ''; resEl.className = 'resultado'; }
+  if (!optsContainer) return;
+
+  const optionsShuffled = q.opciones.map((op, i) => ({ text: op, isCorrect: i === q.correcta }));
+  optionsShuffled.sort(() => Math.random() - .5);
+
+  optsContainer.innerHTML = '';
+  optionsShuffled.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'math-option';
+    btn.textContent = opt.text;
+    btn.onclick = () => mpEnglishBattleResponder(opt.isCorrect, btn);
+    optsContainer.appendChild(btn);
+  });
+
+  // Host broadcasts new question to clients
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'englishBattle', action: 'newQuestion', questionIndex: mpGameState.currentQuestion });
+  }
+}
+
+function mpEnglishBattleResponder(isCorrect, btn) {
+  if (mpEnglishBattleAnswered) return;
+  mpEnglishBattleAnswered = true;
+
+  const resEl = document.getElementById('mpEnglishResultado');
+
+  if (isCorrect) {
+    mpEnglishStreak++;
+    const points = 10 + mpEnglishStreak * 2;
+    if (resEl) {
+      resEl.textContent = '✅ ¡Correct! +' + points + ' puntos';
+      resEl.className = 'resultado correcto';
+    }
+    document.getElementById('mpEnglishStreak').textContent = mpEnglishStreak;
+    btn.style.borderColor = 'var(--verde)';
+    btn.style.background = 'rgba(52,211,153,.1)';
+    sonido('correcto');
+
+    // Pronunciar la palabra en inglés que se acaba de aprender
+    const q = mpGameState.questions[mpGameState.currentQuestion];
+    if (q) {
+      if (/cómo se dice/i.test(q.pregunta)) {
+        // La respuesta correcta ES la palabra en inglés
+        engHablar(btn.textContent, 'en-US');
+      } else {
+        // La palabra en inglés está citada en la pregunta
+        const citada = q.pregunta.match(/"([^"]+)"/);
+        if (citada) engHablar(citada[1], 'en-US');
+      }
+    }
+
+    mpSendToHost({ type: 'answer', mode: 'englishBattle', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points });
+
+    if (mpIsHost) {
+      mpPlayers['host'].score = (mpPlayers['host'].score || 0) + points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      // Avanzar a la siguiente pregunta
+      mpGameState.currentQuestion++;
+      setTimeout(mpShowEnglishBattleQuestion, 900);
+    }
+  } else {
+    mpEnglishStreak = 0;
+    document.getElementById('mpEnglishStreak').textContent = 0;
+    if (resEl) {
+      resEl.textContent = '❌ Incorrecto';
+      resEl.className = 'resultado incorrecto';
+    }
+    btn.style.borderColor = 'var(--coral)';
+    btn.style.background = 'rgba(251,113,133,.1)';
+    sonido('error');
+
+    // El cliente incorrecto puede seguir intentando después de un tiempo (host controla avance)
+    if (mpIsHost) {
+      setTimeout(() => { mpEnglishBattleAnswered = false; }, 1500);
+    } else {
+      setTimeout(() => { mpEnglishBattleAnswered = false; }, 1500);
+    }
+  }
+}
+
 // === HOST HANDLES ANSWERS FROM CLIENTS ===
 function mpHandleAnswer(data) {
   if (!mpIsHost) return;
@@ -4446,6 +5443,19 @@ function mpHandleAnswer(data) {
       }
     }
   }
+  else if (data.mode === 'memoriaVs' && data.action === 'quizAnswer') {
+    // Client answered the mini English quiz
+    if (data.correct && mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + 5;
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      mpRenderPlayers();
+    }
+    if (mpGameState) mpGameState.pendingQuiz = null;
+    setTimeout(() => {
+      mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'closeQuiz', state: mpCleanMemState() });
+      mpCerrarQuizOverlay();
+    }, 1200);
+  }
   else if (data.mode === 'palabrasVs' && data.correct) {
     if (mpPlayers[data.playerId]) {
       mpPlayers[data.playerId].score += data.points;
@@ -4457,11 +5467,30 @@ function mpHandleAnswer(data) {
       }
     }
   }
+  else if (data.mode === 'englishBattle' && data.correct) {
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score += data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+  }
 }
 
 // === HANDLE GAME UPDATES ON CLIENTS ===
 function mpHandleGameUpdate(data) {
   if (data.mode === 'memoriaVs') {
+    if (data.action === 'showQuiz') {
+      // Sync the pendingQuiz into local state and show overlay
+      if (mpGameState) mpGameState.pendingQuiz = data.quiz;
+      mpMostrarQuizIngles();
+      return;
+    }
+    if (data.action === 'closeQuiz') {
+      if (data.state) mpGameState = data.state;
+      mpCerrarQuizOverlay();
+      mpShowMemoriaBoard();
+      return;
+    }
     if (data.state) {
       mpGameState = data.state;
     }
@@ -4478,6 +5507,12 @@ function mpHandleGameUpdate(data) {
       const input = document.getElementById('mpPalabraInput');
       if (input) { input.value = ''; input.focus(); }
       document.getElementById('mpPalabraResultado').textContent = '';
+    }
+  }
+  else if (data.mode === 'englishBattle') {
+    if (data.action === 'newQuestion') {
+      mpGameState.currentQuestion = data.questionIndex;
+      mpShowEnglishBattleQuestion();
     }
   }
 }
