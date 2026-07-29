@@ -1876,7 +1876,7 @@
       </div>
       <div class="mp-hub">
         <div class="card">
-          <h2>🌐 Arena Multijugador</h2>
+          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v12</span></h2>
           <p style="color:var(--morado-claro); margin-bottom: 16px;">¡Juega con tus amigos en tiempo real! Crea una sala o únete con un código.</p>
 
           <div id="mpSetup">
@@ -4432,20 +4432,10 @@ function mpCrearPeer(id) {
       return;
     }
     let settled = false;
-    const peer = new Peer(id, {
-      debug: 0,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          // Servidores TURN gratuitos: necesarios para conectar entre redes distintas
-          // (datos móviles, WiFi escolar, NAT simétrico)
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-        ]
-      }
-    });
+    // Sin config personalizada: PeerJS incluye por defecto sus propios servidores
+    // STUN (Google/Twilio) y TURN (turn.peerjs.com) gratuitos y funcionales.
+    // Sobrescribirlos con servidores externos era lo que rompía la conexión.
+    const peer = new Peer(id, { debug: 0 });
     peer.on('open', () => {
       if (settled) return;
       settled = true;
@@ -4556,11 +4546,17 @@ async function mpUnirse() {
 
     mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode + '-' + mpMyId);
 
-    // Listener PERSISTENTE de errores (los errores tras conectar llegan aquí,
-    // como 'peer-unavailable' cuando la sala no existe o el host se fue)
+    let errorFatal = false;
+    let conectado = false;
+    let intentos = 0;
+    const MAX_INTENTOS = 3;
+
+    // Listener PERSISTENTE de errores (como 'peer-unavailable'
+    // cuando la sala no existe o el host se fue)
     mpPeer.on('error', (err) => {
       console.warn('Peer error post-open:', err.type);
       if (err.type === 'peer-unavailable') {
+        errorFatal = true;
         statusDot.className = 'mp-status-dot';
         statusText.textContent = '❌ No existe esa sala o el anfitrión se desconectó';
         decir('Revisa el código con tu amigo y reintenta 🔍');
@@ -4573,43 +4569,86 @@ async function mpUnirse() {
       try { mpPeer.reconnect(); } catch(e) {}
     });
 
-    statusText.textContent = 'Sala encontrada, conectando con el anfitrión...';
+    // Intento de conexión con reintentos automáticos:
+    // muchos fallos de WebRTC son transitorios y se resuelven al 2º intento
+    const intentarConectar = () => {
+      if (errorFatal || conectado) return;
+      intentos++;
+      statusText.textContent = intentos === 1
+        ? 'Sala encontrada, conectando con el anfitrión...'
+        : '🔄 Reintentando conexión (' + intentos + '/' + MAX_INTENTOS + ')...';
 
-    const conn = mpPeer.connect('mia-mp-' + mpRoomCode, { reliable: true });
-    let connAbierta = false;
+      const conn = mpPeer.connect('mia-mp-' + mpRoomCode, { reliable: true });
+      let resuelto = false;
 
-    conn.on('open', () => {
-      connAbierta = true;
-      mpConnections['host'] = conn;
-      conn.send({ type: 'join', id: mpMyId, name: mpMyName, avatar: mpMyAvatar });
+      conn.on('open', () => {
+        if (errorFatal) { try { conn.close(); } catch(e) {} return; }
+        conectado = true;
+        resuelto = true;
+        clearInterval(monitorICE);
+        mpConnections['host'] = conn;
+        conn.send({ type: 'join', id: mpMyId, name: mpMyName, avatar: mpMyAvatar });
 
-      statusDot.className = 'mp-status-dot online';
-      statusText.textContent = '¡Conectado a la sala!';
-      mpOcultarReintento();
-      decir('¡Entraste a la sala! 🎉');
-      sonido('match');
-    });
+        statusDot.className = 'mp-status-dot online';
+        statusText.textContent = '¡Conectado a la sala!';
+        mpOcultarReintento();
+        decir('¡Entraste a la sala! 🎉');
+        sonido('match');
+      });
 
-    conn.on('data', (data) => mpHandleData(data, 'host'));
-    conn.on('close', () => {
-      statusDot.className = 'mp-status-dot';
-      statusText.textContent = 'Desconectado del anfitrión';
-      delete mpConnections['host'];
-      mpMostrarReintento();
-    });
-    conn.on('error', (err) => {
-      console.warn('Conn error:', err);
-    });
+      conn.on('data', (data) => mpHandleData(data, 'host'));
+      conn.on('close', () => {
+        // Solo avisar desconexión si la conexión llegó a estar abierta
+        if (conectado) {
+          statusDot.className = 'mp-status-dot';
+          statusText.textContent = 'Desconectado del anfitrión';
+          delete mpConnections['host'];
+          conectado = false;
+          mpMostrarReintento();
+        }
+      });
+      conn.on('error', (err) => {
+        console.warn('Conn error:', err);
+      });
 
-    // Timeout: si la conexión P2P no abre en 15s, avisar y ofrecer reintentar
-    setTimeout(() => {
-      if (!connAbierta) {
+      // Monitorear el estado ICE para detectar fallos rápido (sin esperar el timeout)
+      const monitorICE = setInterval(() => {
+        try {
+          if (conectado || resuelto) { clearInterval(monitorICE); return; }
+          const pc = conn.peerConnection;
+          if (pc && (pc.iceConnectionState === 'failed')) {
+            clearInterval(monitorICE);
+            resuelto = true;
+            try { conn.close(); } catch(e) {}
+            siguienteIntento();
+          }
+        } catch(e) {}
+      }, 1000);
+
+      // Timeout por intento: 12s
+      setTimeout(() => {
+        clearInterval(monitorICE);
+        if (!conectado && !resuelto && !errorFatal) {
+          resuelto = true;
+          try { conn.close(); } catch(e) {}
+          siguienteIntento();
+        }
+      }, 12000);
+    };
+
+    const siguienteIntento = () => {
+      if (errorFatal || conectado) return;
+      if (intentos < MAX_INTENTOS) {
+        intentarConectar();
+      } else {
         statusDot.className = 'mp-status-dot';
-        statusText.textContent = '⏱️ No se pudo conectar con el anfitrión';
-        decir('La conexión tardó demasiado. Toca Reintentar 🔄');
+        statusText.textContent = '⏱️ No se pudo conectar. Verifica que ambos tengan la página actualizada.';
+        decir('Cierra y abre la página en los dos dispositivos, luego reintenta 🔄');
         mpMostrarReintento();
       }
-    }, 15000);
+    };
+
+    intentarConectar();
 
   } catch (e) {
     statusDot.className = 'mp-status-dot';
