@@ -1514,6 +1514,13 @@
 
     <!-- ══════════ INICIO ══════════ -->
     <section id="inicio" class="pantalla activa">
+      <!-- 🎯 MISIONES DEL DÍA -->
+      <div class="card" style="max-width:700px; margin:0 auto 24px;">
+        <h2 id="misionesTitulo" style="font-family:'Baloo 2',sans-serif; color:var(--morado); margin-bottom:4px;">🎯 Misiones del Día</h2>
+        <p style="font-size:.85rem; color:var(--morado-claro); margin-bottom:12px;">Completa las 3 misiones de hoy y gana estrellas extra. ¡Cada día hay misiones nuevas! ✨</p>
+        <div id="misionesLista"></div>
+      </div>
+
       <div class="worlds-grid">
 
         <article class="world-card" onclick="iniciarSnake()">
@@ -1662,7 +1669,7 @@
         </div>
         <p class="resultado" id="mathResultado" style="text-align:center;"></p>
         <div class="math-streak">
-          Racha: <span id="mathStreak">0</span> 🔥 &nbsp; | &nbsp; Mejor: <span id="mathBest">0</span> ⭐
+          Racha: <span id="mathStreak">0</span> 🔥 &nbsp; | &nbsp; Mejor: <span id="mathBest">0</span> ⭐ &nbsp; | &nbsp; Bosque: <span id="mathNivelIcon">🌱 Nv.1</span>
         </div>
       </div>
     </section>
@@ -2167,6 +2174,111 @@ function sumarEstrellas(cantidad) {
   sonido('correcto');
 }
 
+// ═══════════════════════════════════════════════
+// 🎯 MISIONES DEL DÍA — sistema pedagógico de metas diarias
+// ═══════════════════════════════════════════════
+
+const MISIONES_POOL = [
+  { id:'math', icon:'🧮', texto:'Resuelve {n} problemas de matemáticas', metas:[5,8] },
+  { id:'ingles', icon:'🔤', texto:'Acierta {n} ejercicios de inglés', metas:[3,5] },
+  { id:'diccionario', icon:'📖', texto:'Aprende {n} palabras nuevas en inglés', metas:[2,3] },
+  { id:'memoria', icon:'🧩', texto:'Encuentra {n} pares en Memoria Mágica', metas:[4,8] },
+  { id:'palabras', icon:'🏰', texto:'Descifra {n} palabras en el Castillo', metas:[3,4] },
+  { id:'snake', icon:'🍎', texto:'Come {n} manzanas mágicas en Snake', metas:[5,8] },
+  { id:'trivia', icon:'🧠', texto:'Responde bien {n} preguntas rápidas', metas:[2,3] },
+  { id:'dibujo', icon:'🎨', texto:'Guarda {n} dibujo en el Taller', metas:[1,1] }
+];
+
+let misionesHoy = [];
+
+function misionesSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+
+function misionesInit() {
+  const hoy = new Date().toDateString();
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem('misionesMia') || '{}'); } catch(e) {}
+  if (data.fecha === hoy && Array.isArray(data.misiones) && data.misiones.length === 3) {
+    misionesHoy = data.misiones;
+  } else {
+    // Elegir 3 misiones del día de forma determinista (mismas aunque recargue)
+    const seed = misionesSeed(hoy);
+    const indices = [];
+    let s = seed;
+    while (indices.length < 3) {
+      s = (s * 9301 + 49297) % 233280;
+      const idx = s % MISIONES_POOL.length;
+      if (!indices.includes(idx)) indices.push(idx);
+    }
+    misionesHoy = indices.map(i => {
+      const m = MISIONES_POOL[i];
+      const meta = m.metas[seed % m.metas.length];
+      return { id: m.id, icon: m.icon, texto: m.texto.replace('{n}', meta), meta, progreso: 0, completada: false };
+    });
+    misionesGuardar();
+  }
+  misionesRender();
+}
+
+function misionesGuardar() {
+  localStorage.setItem('misionesMia', JSON.stringify({ fecha: new Date().toDateString(), misiones: misionesHoy }));
+}
+
+function misionesRender() {
+  const cont = document.getElementById('misionesLista');
+  if (!cont) return;
+  cont.innerHTML = '';
+  let completadas = 0;
+  misionesHoy.forEach(m => {
+    if (m.completada) completadas++;
+    const pct = Math.min(100, Math.round((m.progreso / m.meta) * 100));
+    const row = document.createElement('div');
+    row.style.cssText = 'background:white; border:2px solid ' + (m.completada ? 'var(--verde)' : 'var(--borde)') + '; border-radius:16px; padding:10px 14px; margin-bottom:8px; transition:all .3s;';
+    row.innerHTML =
+      '<div style="display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:.9rem; color:var(--texto);">' +
+        '<span>' + m.icon + ' ' + m.texto + '</span>' +
+        '<span style="color:' + (m.completada ? 'var(--verde)' : 'var(--morado)') + '; font-weight:800; margin-left:8px; white-space:nowrap;">' + (m.completada ? '✅' : (m.progreso + '/' + m.meta)) + '</span>' +
+      '</div>' +
+      '<div style="height:8px; background:rgba(147,51,234,.1); border-radius:99px; margin-top:6px; overflow:hidden;">' +
+        '<div style="height:100%; width:' + pct + '%; background:' + (m.completada ? 'var(--verde)' : 'linear-gradient(90deg,#9333ea,#ec4899)') + '; border-radius:99px; transition:width .4s;"></div>' +
+      '</div>';
+    cont.appendChild(row);
+  });
+  const titulo = document.getElementById('misionesTitulo');
+  if (titulo) titulo.textContent = completadas === 3 ? '🏆 ¡Misiones del día completadas!' : '🎯 Misiones del Día (' + completadas + '/3)';
+}
+
+function misionProgreso(tipo, cantidad) {
+  cantidad = cantidad || 1;
+  let cambio = false;
+  misionesHoy.forEach(m => {
+    if (m.id === tipo && !m.completada) {
+      m.progreso += cantidad;
+      cambio = true;
+      if (m.progreso >= m.meta) {
+        m.completada = true;
+        m.progreso = m.meta;
+        sumarEstrellas(5);
+        showToast('🎯 ¡Misión completada! ' + m.icon + ' +5 ⭐');
+        lanzarConfetti();
+        decir('🎉 ¡Completaste una misión del día! ¡Sigue así!');
+        if (misionesHoy.every(x => x.completada)) {
+          setTimeout(() => {
+            sumarEstrellas(15);
+            showToast('🏆 ¡TODAS las misiones de hoy! +15 ⭐ bonus');
+            lanzarConfetti();
+            decir('👑 ¡Completaste TODAS las misiones de hoy! ¡Eres una campeona!');
+          }, 1600);
+        }
+      }
+    }
+  });
+  if (cambio) { misionesGuardar(); misionesRender(); }
+}
+
 function showToast(text) {
   const toast = document.getElementById('toast');
   toast.textContent = text;
@@ -2328,6 +2440,7 @@ function responderPregunta(respuesta, correcta) {
     resultado.textContent = '✅ ¡Correcto! +5 estrellas';
     resultado.className = 'resultado correcto';
     sumarEstrellas(5);
+    misionProgreso('trivia');
     lanzarConfetti();
     setTimeout(() => {
       document.getElementById('modalPregunta').classList.remove('activo');
@@ -2420,6 +2533,7 @@ function actualizarSnakeLogic() {
     comidasNivel++;
     sumarEstrellas(1);
     sonido('comida');
+    misionProgreso('snake');
     comida = nuevaComida();
     if (comidasNivel >= metaNivel) {
       progreso.snakeNivel++;
@@ -2611,6 +2725,7 @@ function revisarPalabra() {
     resultado.textContent = '🎉 ¡Muy bien! +3 estrellas';
     resultado.className = 'resultado correcto';
     sumarEstrellas(3);
+    misionProgreso('palabras');
     if (rachaLectura % 5 === 0) {
       showToast(`🔥 ¡Racha de ${rachaLectura} palabras!`);
       lanzarConfetti();
@@ -2638,21 +2753,57 @@ let mathTimeLeft = 100;
 let mathStreak = 0;
 let mathCurrentAnswer = 0;
 
-function generarProblema() {
-  const ops = ['+', '−', '×'];
-  const op = ops[Math.floor(Math.random() * ops.length)];
+// ═══ Dificultad adaptativa del Bosque Matemático ═══
+// Nivel 1 🌱: sumas/restas hasta 20, tablas del 2-5
+// Nivel 2 🌿: hasta 100, tablas del 2-9
+// Nivel 3 🌳: hasta 300, tablas del 2-12 + divisiones
+// Nivel 4 🌲: hasta 999, multiplicación 2 dígitos + divisiones
+let mathNivel = Math.min(4, Math.max(1, parseInt(localStorage.getItem('mathNivel') || '1')));
+let mathNivelRacha = 0;
+let mathRepasoOp = null;   // Si falló, repite el mismo tipo de operación (repaso pedagógico)
+let mathUltimaOp = '+';
+const MATH_NIVEL_ICONS = ['🌱','🌿','🌳','🌲'];
+
+function mathActualizarNivelUI() {
+  const el = document.getElementById('mathNivelIcon');
+  if (el) el.textContent = MATH_NIVEL_ICONS[mathNivel - 1] + ' Nv.' + mathNivel;
+}
+
+function generarProblema(nivelForzado) {
+  const nivel = nivelForzado || mathNivel;
+  const ops = nivel >= 3 ? ['+', '−', '×', '÷'] : ['+', '−', '×'];
+  let op = ops[Math.floor(Math.random() * ops.length)];
+  // Repaso: si acaba de fallar, practicar el mismo tipo de operación
+  if (mathRepasoOp && !nivelForzado && ops.includes(mathRepasoOp)) {
+    op = mathRepasoOp;
+    mathRepasoOp = null;
+  }
+  mathUltimaOp = op;
+
+  const maxSuma = nivel === 1 ? 20 : nivel === 2 ? 100 : nivel === 3 ? 300 : 999;
+  const maxTabla = nivel === 1 ? 5 : nivel === 2 ? 9 : 12;
+
   let a, b, answer;
   if (op === '×') {
-    a = Math.floor(Math.random() * 10) + 2;
-    b = Math.floor(Math.random() * 10) + 2;
+    if (nivel === 4) {
+      a = Math.floor(Math.random() * 89) + 11; // 2 dígitos
+      b = Math.floor(Math.random() * 8) + 2;   // × 1 dígito
+    } else {
+      a = Math.floor(Math.random() * (maxTabla - 1)) + 2;
+      b = Math.floor(Math.random() * (maxTabla - 1)) + 2;
+    }
     answer = a * b;
+  } else if (op === '÷') {
+    b = Math.floor(Math.random() * 8) + 2;
+    answer = Math.floor(Math.random() * 10) + 2;
+    a = b * answer; // división exacta siempre
   } else if (op === '+') {
-    a = Math.floor(Math.random() * 200) + 10;
-    b = Math.floor(Math.random() * 200) + 10;
+    a = Math.floor(Math.random() * maxSuma) + 5;
+    b = Math.floor(Math.random() * maxSuma) + 5;
     answer = a + b;
   } else {
-    answer = Math.floor(Math.random() * 100) + 10;
-    b = Math.floor(Math.random() * (answer - 1)) + 1;
+    answer = Math.floor(Math.random() * maxSuma) + 5;
+    b = Math.floor(Math.random() * answer) + 1;
     a = answer + b;
     answer = a - b;
   }
@@ -2692,7 +2843,7 @@ async function mostrarMathProblemIA() {
       const btn = document.createElement('button');
       btn.className = 'math-option';
       btn.textContent = n;
-      btn.onclick = () => verificarMath(n, btn);
+      btn.onclick = () => checkMathAnswer(n);
       container.appendChild(btn);
     });
     document.getElementById('mathResultado').textContent = '';
@@ -2767,13 +2918,36 @@ function checkMathAnswer(n) {
     res.textContent = '✅ ¡Correcto!';
     res.className = 'resultado correcto';
     sonido('comida');
+    misionProgreso('math');
+    // Adaptación: 4 aciertos seguidos → sube el nivel del bosque
+    mathNivelRacha++;
+    if (mathNivelRacha >= 4 && mathNivel < 4) {
+      mathNivel++;
+      mathNivelRacha = 0;
+      localStorage.setItem('mathNivel', mathNivel);
+      mathActualizarNivelUI();
+      showToast('📈 ¡El bosque creció! Nivel ' + mathNivel + ' ' + MATH_NIVEL_ICONS[mathNivel - 1]);
+      lanzarConfetti();
+      decir('🌟 ¡Subiste de nivel! Los retos ahora son más grandes 💪');
+    }
     mostrarMathProblem();
   } else {
-    res.textContent = `❌ Era ${mathCurrentAnswer}`;
+    res.textContent = `❌ Era ${mathCurrentAnswer}. ¡Practiquemos otra parecida! 💪`;
     res.className = 'resultado incorrecto';
     sonido('error');
     mathStreak = 0;
     document.getElementById('mathStreak').textContent = 0;
+    // Repaso pedagógico: la siguiente será del mismo tipo de operación
+    mathRepasoOp = mathUltimaOp;
+    // Adaptación: 2 errores seguidos → baja el nivel suavemente
+    mathNivelRacha--;
+    if (mathNivelRacha <= -2 && mathNivel > 1) {
+      mathNivel--;
+      mathNivelRacha = 0;
+      localStorage.setItem('mathNivel', mathNivel);
+      mathActualizarNivelUI();
+      decir('🌱 Vamos con calma, ¡tú puedes! Practicando un poco más fácil');
+    }
     setTimeout(mostrarMathProblem, 600);
   }
 }
@@ -2860,6 +3034,7 @@ function flipCard(i) {
       memoryMatched++;
       document.getElementById('memPares').textContent = memoryMatched;
       sonido('match');
+      misionProgreso('memoria');
       memoryLocked = false;
       renderMemory();
       if (memoryMatched === memoryTotal) {
@@ -3046,6 +3221,7 @@ function downloadDrawing() {
   link.href = drawCanvas.toDataURL();
   link.click();
   sumarEstrellas(2);
+  misionProgreso('dibujo');
   decir('¡Dibujo guardado! +2 estrellas por ser artista 🖼️');
   showToast('🎨 ¡Dibujo guardado!');
 }
@@ -3145,6 +3321,8 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 // Init
 iaInit();
 pintarProgreso();
+misionesInit();
+mathActualizarNivelUI();
 nuevaPalabra();
 reiniciarSnake();
 iniciarMemoria();
@@ -3504,6 +3682,7 @@ function engAgregarDiccionario(en, es) {
   const count = document.getElementById('engDicCount');
   if (count) count.textContent = dic.length;
   showToast('📖 +1 palabra nueva: ' + palabra);
+  misionProgreso('diccionario');
 }
 
 function engToggleDiccionario() {
@@ -3537,18 +3716,61 @@ function engToggleDiccionario() {
 }
 
 // ═══════════════════════════════════════════════
-// HABLAR (Text-to-Speech)
+// HABLAR (Text-to-Speech) — con selección de voz natural
 // ═══════════════════════════════════════════════
 
-function engHablar(text, lang) {
-  if ('speechSynthesis' in window) {
-    speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = lang || 'en-US';
-    utter.rate = 0.85;
-    utter.pitch = 1.1;
-    speechSynthesis.speak(utter);
+// Cache de la mejor voz disponible por idioma
+let engVozCacheada = {};
+
+function engElegirMejorVoz(voces, langPrefix) {
+  const candidatas = voces.filter(v => v.lang && v.lang.toLowerCase().startsWith(langPrefix));
+  if (candidatas.length === 0) return null;
+  // Ranking de naturalidad (de mejor a peor):
+  const ranking = [
+    v => /natural/i.test(v.name),                                  // Edge: voces neurales "Natural" (las mejores)
+    v => /neural/i.test(v.name),                                   // Otras voces neurales
+    v => /premium|enhanced/i.test(v.name),                         // iOS/macOS: voces mejoradas
+    v => /google/i.test(v.name),                                   // Chrome: "Google US English" (muy buena)
+    v => /aria|jenny|guy|samantha|karen|daniel|zira/i.test(v.name),// Voces conocidas de buena calidad
+    v => v.localService === false                                  // Voces en la nube (suelen ser mejores)
+  ];
+  for (const test of ranking) {
+    const encontrada = candidatas.find(test);
+    if (encontrada) return encontrada;
   }
+  return candidatas[0];
+}
+
+function engCargarVoces() {
+  if (!('speechSynthesis' in window)) return;
+  const voces = speechSynthesis.getVoices();
+  if (!voces || voces.length === 0) return;
+  engVozCacheada['en'] = engElegirMejorVoz(voces, 'en');
+  engVozCacheada['es'] = engElegirMejorVoz(voces, 'es');
+}
+
+// Las voces cargan de forma asíncrona en Chrome/Edge
+if ('speechSynthesis' in window) {
+  engCargarVoces();
+  speechSynthesis.onvoiceschanged = engCargarVoces;
+}
+
+function engHablar(text, lang) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const idioma = lang || 'en-US';
+  utter.lang = idioma;
+  // Usar la voz más natural disponible en este dispositivo
+  const prefix = idioma.split('-')[0].toLowerCase();
+  if (!engVozCacheada[prefix]) engCargarVoces(); // reintentar si aún no cargaron
+  const voz = engVozCacheada[prefix];
+  if (voz) utter.voice = voz;
+  // Ajustes para sonar natural: pitch neutro y ritmo pausado (ideal para aprender)
+  utter.rate = 0.9;
+  utter.pitch = 1.0;
+  utter.volume = 1;
+  speechSynthesis.speak(utter);
 }
 
 // ═══════════════════════════════════════════════
@@ -3698,6 +3920,7 @@ function engSpellingCheck() {
     resEl.className = 'resultado correcto';
     sumarEstrellas(4);
     sonido('correcto');
+    misionProgreso('ingles');
     engAgregarDiccionario(d.en, d.es);
     engHablar(d.en, 'en-US');
     if (engRacha % 5 === 0) { showToast('🔥 Spelling streak: ' + engRacha + '!'); lanzarConfetti(); }
@@ -3877,6 +4100,7 @@ function engSpeakEscuchar() {
       sumarEstrellas(5);
       sonido('correcto');
       lanzarConfetti();
+      misionProgreso('ingles');
       engAgregarDiccionario(d.en, d.es);
       decir('🎉 Amazing! ¡Pronunciaste "' + d.en + '" perfecto!');
     } else {
@@ -4077,6 +4301,7 @@ function engResponder(index, btn, container) {
     resultado.className = 'resultado correcto';
     sumarEstrellas(3);
     sonido('correcto');
+    misionProgreso('ingles');
     // Guardar en Mi Diccionario (solo palabras cortas, no oraciones)
     const enWord = d.speakAnswer || d.speakText;
     let esMeaning = '';
@@ -4528,7 +4753,7 @@ function mpIniciarJuego(mode) {
 function mpGenerarDueloState() {
   const problems = [];
   for (let i = 0; i < 15; i++) {
-    problems.push(generarProblema());
+    problems.push(generarProblema(2)); // Nivel fijo medio: justo para todos los jugadores
   }
   return {
     problems,
