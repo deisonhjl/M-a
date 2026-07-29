@@ -1905,6 +1905,7 @@
             <div class="mp-status-bar">
               <div class="mp-status-dot" id="mpStatusDot"></div>
               <span class="mp-status-text" id="mpStatusText">Conectando...</span>
+              <button class="btn btn-warm btn-sm" id="mpRetryBtn" onclick="mpReintentar()" style="display:none; margin-left:auto;">🔄 Reintentar</button>
             </div>
 
             <div class="mp-room-code" id="mpRoomDisplay" onclick="mpCopiarCodigo()">
@@ -4430,18 +4431,30 @@ function mpCrearPeer(id) {
       reject(new Error('No se pudo cargar la conexión. Recarga la página e intenta de nuevo.'));
       return;
     }
+    let settled = false;
     const peer = new Peer(id, {
       debug: 0,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          // Servidores TURN gratuitos: necesarios para conectar entre redes distintas
+          // (datos móviles, WiFi escolar, NAT simétrico)
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ]
       }
     });
-    peer.on('open', () => resolve(peer));
+    peer.on('open', () => {
+      if (settled) return;
+      settled = true;
+      resolve(peer);
+    });
     peer.on('error', (err) => {
       console.warn('PeerJS error:', err.type, err);
+      if (settled) return;
+      settled = true;
       if (err.type === 'unavailable-id') {
         reject(new Error('Sala ocupada, intenta otro código'));
       } else if (err.type === 'peer-unavailable') {
@@ -4450,7 +4463,11 @@ function mpCrearPeer(id) {
         reject(err);
       }
     });
-    setTimeout(() => reject(new Error('Tiempo agotado conectando')), 15000);
+    setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('Tiempo agotado conectando'));
+    }, 15000);
   });
 }
 
@@ -4477,7 +4494,16 @@ async function mpCrearSala() {
   document.getElementById('mpCodigoDisplay').textContent = mpRoomCode;
 
   try {
+    // Limpiar peer anterior si hubo un intento previo
+    if (mpPeer) { try { mpPeer.destroy(); } catch(e) {} mpPeer = null; }
+
     mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode);
+
+    // Mantener viva la conexión con el servidor de señalización:
+    // si se cae, los amigos no podrían encontrar la sala
+    mpPeer.on('disconnected', () => {
+      try { mpPeer.reconnect(); } catch(e) {}
+    });
 
     mpPlayers = {};
     mpPlayers['host'] = { name: mpMyName, avatar: mpMyAvatar, score: 0 };
@@ -4485,6 +4511,7 @@ async function mpCrearSala() {
 
     statusDot.className = 'mp-status-dot online';
     statusText.textContent = '¡Sala creada! Comparte el código con tus amigos.';
+    mpOcultarReintento();
     decir(`¡Sala ${mpRoomCode} lista! Comparte el código 🎮`);
     sonido('win');
 
@@ -4496,6 +4523,7 @@ async function mpCrearSala() {
     statusDot.className = 'mp-status-dot';
     statusText.textContent = 'Error: ' + e.message;
     decir('No se pudo crear la sala. Intenta de nuevo 😢');
+    mpMostrarReintento();
   }
 }
 
@@ -4503,7 +4531,7 @@ async function mpUnirse() {
   iniciarAudio();
   mpMyName = mpGetNombre();
   mpIsHost = false;
-  mpRoomCode = (document.getElementById('mpCodigoInput').value || '').trim().toUpperCase();
+  mpRoomCode = (document.getElementById('mpCodigoInput').value || mpRoomCode || '').trim().toUpperCase();
 
   if (mpRoomCode.length < 3) {
     decir('Escribe el código de la sala 📝');
@@ -4516,22 +4544,48 @@ async function mpUnirse() {
   const statusText = document.getElementById('mpStatusText');
   statusDot.className = 'mp-status-dot connecting';
   statusText.textContent = 'Buscando sala...';
+  mpOcultarReintento();
 
   document.getElementById('mpSetup').style.display = 'none';
   document.getElementById('mpLobby').style.display = 'block';
   document.getElementById('mpCodigoDisplay').textContent = mpRoomCode;
 
   try {
+    // Limpiar peer anterior si hubo un intento previo
+    if (mpPeer) { try { mpPeer.destroy(); } catch(e) {} mpPeer = null; }
+
     mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode + '-' + mpMyId);
 
+    // Listener PERSISTENTE de errores (los errores tras conectar llegan aquí,
+    // como 'peer-unavailable' cuando la sala no existe o el host se fue)
+    mpPeer.on('error', (err) => {
+      console.warn('Peer error post-open:', err.type);
+      if (err.type === 'peer-unavailable') {
+        statusDot.className = 'mp-status-dot';
+        statusText.textContent = '❌ No existe esa sala o el anfitrión se desconectó';
+        decir('Revisa el código con tu amigo y reintenta 🔍');
+        mpMostrarReintento();
+      }
+    });
+
+    // Mantener viva la conexión con el servidor de señalización
+    mpPeer.on('disconnected', () => {
+      try { mpPeer.reconnect(); } catch(e) {}
+    });
+
+    statusText.textContent = 'Sala encontrada, conectando con el anfitrión...';
+
     const conn = mpPeer.connect('mia-mp-' + mpRoomCode, { reliable: true });
+    let connAbierta = false;
 
     conn.on('open', () => {
+      connAbierta = true;
       mpConnections['host'] = conn;
       conn.send({ type: 'join', id: mpMyId, name: mpMyName, avatar: mpMyAvatar });
 
       statusDot.className = 'mp-status-dot online';
       statusText.textContent = '¡Conectado a la sala!';
+      mpOcultarReintento();
       decir('¡Entraste a la sala! 🎉');
       sonido('match');
     });
@@ -4539,14 +4593,49 @@ async function mpUnirse() {
     conn.on('data', (data) => mpHandleData(data, 'host'));
     conn.on('close', () => {
       statusDot.className = 'mp-status-dot';
-      statusText.textContent = 'Desconectado del host';
+      statusText.textContent = 'Desconectado del anfitrión';
       delete mpConnections['host'];
+      mpMostrarReintento();
     });
+    conn.on('error', (err) => {
+      console.warn('Conn error:', err);
+    });
+
+    // Timeout: si la conexión P2P no abre en 15s, avisar y ofrecer reintentar
+    setTimeout(() => {
+      if (!connAbierta) {
+        statusDot.className = 'mp-status-dot';
+        statusText.textContent = '⏱️ No se pudo conectar con el anfitrión';
+        decir('La conexión tardó demasiado. Toca Reintentar 🔄');
+        mpMostrarReintento();
+      }
+    }, 15000);
 
   } catch (e) {
     statusDot.className = 'mp-status-dot';
     statusText.textContent = 'Error: ' + e.message;
     decir('No se encontró esa sala 😢');
+    mpMostrarReintento();
+  }
+}
+
+// Botón de reintento cuando la conexión falla
+function mpMostrarReintento() {
+  const btn = document.getElementById('mpRetryBtn');
+  if (btn) btn.style.display = 'inline-block';
+}
+
+function mpOcultarReintento() {
+  const btn = document.getElementById('mpRetryBtn');
+  if (btn) btn.style.display = 'none';
+}
+
+function mpReintentar() {
+  mpOcultarReintento();
+  if (mpIsHost) {
+    mpCrearSala();
+  } else {
+    mpUnirse();
   }
 }
 
