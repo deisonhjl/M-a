@@ -1460,7 +1460,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <div class="logo-icon">🦄</div>
-      Mundo de Mía <span style="font-size:.6rem; color:var(--morado-claro); font-weight:600; vertical-align:super;">v14</span>
+      Mundo de Mía <span style="font-size:.6rem; color:var(--morado-claro); font-weight:600; vertical-align:super;">v17</span>
     </div>
     <div class="stats-bar">
       <div class="stat-pill">⭐ <span class="stat-value" id="estrellas">0</span></div>
@@ -1876,7 +1876,7 @@
       </div>
       <div class="mp-hub">
         <div class="card">
-          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v14</span></h2>
+          <h2>🌐 Arena Multijugador <span style="font-size:.65rem; color:var(--morado-claro); font-weight:600; vertical-align:middle;">v17</span></h2>
           <p style="color:var(--morado-claro); margin-bottom: 16px;">¡Juega con tus amigos en tiempo real! Crea una sala o únete con un código.</p>
 
           <div id="mpSetup">
@@ -1937,6 +1937,26 @@
                 <span class="mode-emoji">🏆</span>
                 <h3>English Battle</h3>
                 <p>¡Batalla de inglés en vivo!</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('listenRace')">
+                <span class="mode-emoji">👂</span>
+                <h3>Escucha Veloz</h3>
+                <p>Escucha la palabra y toca primero</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('spellingRace')">
+                <span class="mode-emoji">🐝</span>
+                <h3>Spelling Race</h3>
+                <p>Escucha y escríbela primero</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('wordChain')">
+                <span class="mode-emoji">🔗</span>
+                <h3>Cadena de Palabras</h3>
+                <p>Por turnos: sigue la cadena en inglés</p>
+              </div>
+              <div class="mp-mode-card" onclick="mpIniciarJuego('trueFalse')">
+                <span class="mode-emoji">❓</span>
+                <h3>Verdadero o Falso</h3>
+                <p>¡Todos votan a toda velocidad!</p>
               </div>
             </div>
 
@@ -4377,6 +4397,7 @@ let mpMyId = '';
 let mpGameState = null;
 let mpGameMode = '';
 let mpGameTimer = null;
+let mpGameEnCurso = false; // Hay una partida activa (para reenviar estado a reconectados)
 
 // Generar código de sala
 function mpGenerarCodigo() {
@@ -4539,7 +4560,16 @@ async function mpUnirse() {
     return;
   }
 
-  mpMyId = 'p' + Math.floor(Math.random() * 9999);
+  // Identidad PERSISTENTE del jugador: si se cae y vuelve, el anfitrión
+  // lo reconoce y le conserva su puntaje y su lugar en la partida
+  mpMyId = localStorage.getItem('mpPlayerId');
+  if (!mpMyId) {
+    mpMyId = 'p' + Math.floor(Math.random() * 899999 + 100000);
+    localStorage.setItem('mpPlayerId', mpMyId);
+  }
+  // El id físico del peer es siempre aleatorio para evitar conflictos
+  // con sesiones zombie en el servidor de señalización
+  const peerSufijo = Math.floor(Math.random() * 99999);
 
   const statusDot = document.getElementById('mpStatusDot');
   const statusText = document.getElementById('mpStatusText');
@@ -4555,7 +4585,7 @@ async function mpUnirse() {
     // Limpiar peer anterior si hubo un intento previo
     if (mpPeer) { try { mpPeer.destroy(); } catch(e) {} mpPeer = null; }
 
-    mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode + '-' + mpMyId);
+    mpPeer = await mpCrearPeer('mia-mp-' + mpRoomCode + '-' + mpMyId + '-' + peerSufijo);
 
     let errorFatal = false;
     let conectado = false;
@@ -4698,10 +4728,31 @@ function mpHandleConnection(conn) {
     conn.on('data', (data) => mpHandleData(data, conn.peer));
     conn.on('close', () => {
       for (const [pid, info] of Object.entries(mpPlayers)) {
-        if (info.peer === conn.peer) {
-          mpAddChat('Sistema', `${info.avatar} ${info.name} se fue`);
-          delete mpPlayers[pid];
+        if (info.peer === conn.peer && !info.desconectado) {
+          // Marcar como desconectado (NO borrar): conserva su puntaje
+          // para que pueda volver a la partida con el mismo avance
+          info.desconectado = true;
+          mpAddChat('Sistema', `${info.avatar} ${info.name} se desconectó 💤 (puede volver)`);
           delete mpConnections[pid];
+
+          // Si era su turno en Cadena de Palabras, pasar el turno
+          if (mpGameMode === 'wordChain' && mpGameState && mpGameState.currentTurn === pid && mpGameEnCurso) {
+            mpChainAvanzarTurno();
+            mpBroadcast({ type: 'gameUpdate', mode: 'wordChain', action: 'estado', st: mpChainEstado(), aviso: '💤 Turno saltado (jugador desconectado)' });
+            mpShowWordChain();
+          }
+
+          // Si era su turno en Memoria, voltear sus cartas y pasar el turno
+          // para que el juego no se quede trabado esperándolo
+          if (mpGameMode === 'memoriaVs' && mpGameState && mpGameState.currentTurn === pid && mpGameEnCurso) {
+            (mpGameState.flippedThisTurn || []).forEach(i => mpGameState.revealed[i] = false);
+            mpGameState.flippedThisTurn = [];
+            mpGameState.turnIndex = (mpGameState.turnIndex + 1) % mpGameState.turnOrder.length;
+            mpGameState.currentTurn = mpGameState.turnOrder[mpGameState.turnIndex];
+            mpBroadcast({ type: 'gameUpdate', mode: 'memoriaVs', action: 'checkPair', state: mpCleanMemState() });
+            mpShowMemoriaBoard();
+          }
+
           mpRenderPlayers();
           mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
           break;
@@ -4718,7 +4769,10 @@ function mpHandleData(data, fromPeer) {
   switch(data.type) {
     case 'join':
       if (mpIsHost) {
-        mpPlayers[data.id] = { name: data.name, avatar: data.avatar, score: 0, peer: fromPeer };
+        // ¿Es una RECONEXIÓN? (mismo id de jugador que ya estaba en la sala)
+        const esReconexion = !!mpPlayers[data.id];
+        const scorePrevio = esReconexion ? (mpPlayers[data.id].score || 0) : 0;
+        mpPlayers[data.id] = { name: data.name, avatar: data.avatar, score: scorePrevio, peer: fromPeer };
         // Find and store the connection properly
         const tempKey = '_temp_' + fromPeer;
         if (mpConnections[tempKey]) {
@@ -4737,9 +4791,25 @@ function mpHandleData(data, fromPeer) {
         }
         mpRenderPlayers();
         mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
-        mpAddChat('Sistema', `${data.avatar} ${data.name} entró a la sala!`);
+        if (esReconexion) {
+          mpAddChat('Sistema', `${data.avatar} ${data.name} volvió a la sala! 🎉`);
+          decir(`¡${data.name} volvió! 💪`);
+          // Si hay un juego en curso, reenviarle el estado actual
+          // para que retome la partida donde va
+          if (mpGameEnCurso && mpGameMode && mpGameState) {
+            const st = (mpGameMode === 'memoriaVs') ? mpCleanMemState() : mpGameState;
+            const c = mpConnections[data.id];
+            if (c && c.open) {
+              setTimeout(() => {
+                try { c.send({ type: 'gameStart', mode: mpGameMode, state: st }); } catch(e) {}
+              }, 400);
+            }
+          }
+        } else {
+          mpAddChat('Sistema', `${data.avatar} ${data.name} entró a la sala!`);
+          decir(`¡${data.name} entró! 🎉`);
+        }
         sonido('match');
-        decir(`¡${data.name} entró! 🎉`);
       }
       break;
 
@@ -4757,6 +4827,7 @@ function mpHandleData(data, fromPeer) {
     case 'gameStart':
       mpGameMode = data.mode;
       mpGameState = data.state;
+      mpGameEnCurso = true;
       mpStartGameUI();
       break;
 
@@ -4780,7 +4851,7 @@ function mpStripPlayers() {
   // remove peer info before sending
   const clean = {};
   for (const [k,v] of Object.entries(mpPlayers)) {
-    clean[k] = { name: v.name, avatar: v.avatar, score: v.score };
+    clean[k] = { name: v.name, avatar: v.avatar, score: v.score, desconectado: v.desconectado || false };
   }
   return clean;
 }
@@ -4809,9 +4880,10 @@ function mpRenderPlayers() {
   let html = '';
   for (const [id, p] of Object.entries(mpPlayers)) {
     const isMe = (mpIsHost && id === 'host') || (!mpIsHost && id === mpMyId);
-    html += `<div class="mp-player-tag ${isMe ? 'is-me' : ''}">
+    const offStyle = p.desconectado ? ' style="opacity:.45;"' : '';
+    html += `<div class="mp-player-tag ${isMe ? 'is-me' : ''}"${offStyle}>
       <span class="player-avatar">${p.avatar}</span>
-      <span>${p.name}${isMe ? ' (tú)' : ''}</span>
+      <span>${p.name}${isMe ? ' (tú)' : ''}${p.desconectado ? ' 💤' : ''}</span>
       <span class="player-score">⭐${p.score || 0}</span>
     </div>`;
   }
@@ -4881,9 +4953,18 @@ function mpIniciarJuego(mode) {
     state = mpGenerarPalabrasState();
   } else if (mode === 'englishBattle') {
     state = mpGenerarEnglishBattleState();
+  } else if (mode === 'listenRace') {
+    state = mpGenerarListenRaceState();
+  } else if (mode === 'spellingRace') {
+    state = mpGenerarSpellingRaceState();
+  } else if (mode === 'wordChain') {
+    state = mpGenerarWordChainState();
+  } else if (mode === 'trueFalse') {
+    state = mpGenerarTrueFalseState();
   }
 
   mpGameState = state;
+  mpGameEnCurso = true;
   mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
   mpBroadcast({ type: 'gameStart', mode, state });
   mpStartGameUI();
@@ -5127,6 +5208,104 @@ function mpGenerarEnglishBattleState() {
   };
 }
 
+// --- ESCUCHA VELOZ (Listening Race) ---
+// Estado 100% auto-contenido y serializable: las rondas completas viajan
+// en gameStart, por lo que la reconexión a mitad de partida funciona sola.
+function mpGenerarListenRaceState() {
+  // Juntar todas las palabras del banco temático (108 items: emoji/en/es)
+  const todos = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) {
+    todos.push(...MP_ENGLISH_MEMORY_BANK[tema]);
+  }
+  const mezclados = [...todos].sort(() => Math.random() - .5);
+  const rounds = [];
+  for (let i = 0; i < 15 && i < mezclados.length; i++) {
+    const item = mezclados[i];
+    // 3 distractores con significado en español distinto
+    const distractores = todos.filter(x => x.es !== item.es);
+    const opciones = [{ emoji: item.emoji, es: item.es }];
+    const usados = new Set([item.es]);
+    while (opciones.length < 4 && distractores.length > 0) {
+      const idx = Math.floor(Math.random() * distractores.length);
+      const d = distractores[idx];
+      if (!usados.has(d.es)) {
+        opciones.push({ emoji: d.emoji, es: d.es });
+        usados.add(d.es);
+      }
+      distractores.splice(idx, 1);
+    }
+    opciones.sort(() => Math.random() - .5);
+    rounds.push({
+      en: item.en,                                        // palabra que se pronuncia (nunca se muestra)
+      opciones,
+      correcta: opciones.findIndex(o => o.es === item.es)
+    });
+  }
+  return {
+    rounds,
+    currentRound: 0,
+    timeLeft: 90
+  };
+}
+
+// --- SPELLING RACE ---
+// Estado auto-contenido: las palabras completas viajan en gameStart (reconexión OK)
+function mpGenerarSpellingRaceState() {
+  const todos = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) {
+    // Solo palabras de UNA sola palabra (sin espacios) para poder escribirlas
+    MP_ENGLISH_MEMORY_BANK[tema].forEach(it => { if (!it.en.includes(' ')) todos.push(it); });
+  }
+  const words = [...todos].sort(() => Math.random() - .5).slice(0, 12)
+    .map(it => ({ en: it.en, es: it.es, emoji: it.emoji }));
+  return { words, currentWord: 0, timeLeft: 120 };
+}
+
+// --- CADENA DE PALABRAS ---
+// Diccionario embebido de palabras simples en inglés (validación del host)
+const ENGLISH_CHAIN_DICT = (function() {
+  const base = ['and','ant','apple','arm','art','ask','baby','back','bad','bag','ball','banana','base','bat','bath','bear','bed','bee','best','big','bike','bird','black','blue','boat','body','book','box','boy','bread','brown','bus','busy','buy','cake','call','can','cap','car','cat','chair','cheese','city','class','clean','clock','cloud','coat','cold','color','cook','cool','corn','cow','crayon','cry','cup','cut','dad','dance','dark','day','deep','desk','dig','dinner','dirty','dog','doll','door','down','draw','dream','dress','drink','drum','dry','duck','ear','earth','easy','eat','egg','eight','end','enjoy','eraser','eye','face','fall','family','fan','farm','fast','fat','father','feet','find','fire','fish','five','flag','floor','flower','fly','food','foot','four','fox','friend','frog','fruit','full','fun','game','garden','gift','girl','give','glass','glue','goat','gold','good','grape','grass','green','grow','hair','hand','happy','hat','head','hear','help','hen','high','hill','home','honey','horse','hot','house','hug','ice','idea','ink','iron','island','jam','jar','jet','job','jog','juice','jump','key','kid','kind','king','kiss','kite','know','lamp','land','laugh','leaf','leg','lemon','light','like','line','lion','lip','list','live','long','look','love','low','lunch','make','man','map','meat','milk','mom','moon','morning','mother','mouse','mouth','move','music','name','nap','near','neck','nest','net','new','nice','night','nine','nose','note','now','nurse','nut','ocean','old','one','open','orange','out','oven','owl','page','paint','paper','park','pen','pencil','pet','photo','piano','pig','pink','pizza','plant','play','pony','pool','potato','pretty','queen','question','quick','quiet','quiz','rabbit','rain','read','red','rice','ride','ring','river','road','rock','room','rope','rose','run','sad','salt','sand','say','school','sea','seat','see','seven','ship','shoe','shop','short','sing','sister','sit','six','sky','sleep','slow','small','smile','snow','sock','soft','song','soup','star','stop','story','sun','sweet','swim','table','tail','take','talk','tall','tea','teacher','team','ten','tent','thank','three','tiger','time','today','toe','tomato','tool','tooth','top','toy','train','tree','truck','two','umbrella','uncle','under','up','use','van','very','violin','walk','wall','warm','wash','watch','water','wave','wear','week','wet','whale','white','win','wind','window','wing','winter','wolf','wood','word','work','world','write','yard','year','yellow','yes','yogurt','young','zebra','zero','zigzag','zipper','zoo','zoom'];
+  // Sumar las palabras del banco temático (solo de una palabra)
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) {
+    MP_ENGLISH_MEMORY_BANK[tema].forEach(it => {
+      const w = it.en.toLowerCase();
+      if (!w.includes(' ') && !base.includes(w)) base.push(w);
+    });
+  }
+  return new Set(base);
+})();
+
+let mpChainTurnTimer = null;
+const MP_CHAIN_TURNO_SEG = 20;
+
+function mpGenerarWordChainState() {
+  return {
+    usadas: [],
+    letraActual: null, // la primera palabra es libre
+    currentTurn: Object.keys(mpPlayers)[0],
+    turnOrder: Object.keys(mpPlayers),
+    turnIndex: 0,
+    timeLeft: 120
+  };
+}
+
+// --- VERDADERO O FALSO ---
+function mpGenerarTrueFalseState() {
+  const todos = [];
+  for (const tema of Object.keys(MP_ENGLISH_MEMORY_BANK)) todos.push(...MP_ENGLISH_MEMORY_BANK[tema]);
+  const mezclados = [...todos].sort(() => Math.random() - .5).slice(0, 15);
+  const statements = mezclados.map(item => {
+    const esVerdad = Math.random() < 0.5;
+    let significado = item.es;
+    if (!esVerdad) {
+      const otros = todos.filter(x => x.es !== item.es);
+      significado = otros[Math.floor(Math.random() * otros.length)].es;
+    }
+    return { texto: '«' + item.en + '» significa: ' + significado, correcta: esVerdad, en: item.en };
+  });
+  return { statements, current: 0, timeLeft: 90, roundSeg: 6 };
+}
+
 // --- PALABRAS VS ---
 function mpGenerarPalabrasState() {
   const wordsList = [...palabras].sort(() => Math.random() - .5).slice(0, 10);
@@ -5163,6 +5342,18 @@ function mpStartGameUI() {
   } else if (mpGameMode === 'englishBattle') {
     document.getElementById('mpGameTitle').textContent = '🏆 English Battle';
     mpRenderEnglishBattle(content);
+  } else if (mpGameMode === 'listenRace') {
+    document.getElementById('mpGameTitle').textContent = '👂 Escucha Veloz';
+    mpRenderListenRace(content);
+  } else if (mpGameMode === 'spellingRace') {
+    document.getElementById('mpGameTitle').textContent = '🐝 Spelling Race';
+    mpRenderSpellingRace(content);
+  } else if (mpGameMode === 'wordChain') {
+    document.getElementById('mpGameTitle').textContent = '🔗 Cadena de Palabras';
+    mpRenderWordChain(content);
+  } else if (mpGameMode === 'trueFalse') {
+    document.getElementById('mpGameTitle').textContent = '❓ Verdadero o Falso';
+    mpRenderTrueFalse(content);
   }
 
   // Countdown
@@ -5236,6 +5427,71 @@ function mpStartGameTimer() {
         mpEndGame();
       }
     }, 1000);
+  } else if (mpGameMode === 'listenRace') {
+    mpGameState.timeLeft = 90;
+    mpShowListenRaceRound();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const timer = document.getElementById('mpListenTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        mpEndGame();
+      }
+    }, 1000);
+  } else if (mpGameMode === 'spellingRace') {
+    mpGameState.timeLeft = 120;
+    mpShowSpellingWord();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const timer = document.getElementById('mpSpellTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        mpEndGame();
+      }
+    }, 1000);
+  } else if (mpGameMode === 'wordChain') {
+    mpGameState.timeLeft = 120;
+    mpShowWordChain();
+    if (mpIsHost) mpChainIniciarTurnoTimer();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      const timer = document.getElementById('mpChainTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        if (mpIsHost) { clearTimeout(mpChainTurnTimer); mpEndGame(); }
+      }
+    }, 1000);
+  } else if (mpGameMode === 'trueFalse') {
+    mpGameState.timeLeft = 90;
+    mpTFRoundLeft = mpGameState.roundSeg || 6;
+    mpShowTrueFalse();
+    mpGameTimer = setInterval(() => {
+      mpGameState.timeLeft--;
+      mpTFRoundLeft--;
+      const timer = document.getElementById('mpTFTimer');
+      if (timer) timer.textContent = mpGameState.timeLeft + 's';
+      const rt = document.getElementById('mpTFRoundTimer');
+      if (rt) rt.textContent = Math.max(0, mpTFRoundLeft);
+      // El host controla el avance de rondas (6s cada una)
+      if (mpIsHost && mpTFRoundLeft <= 0) {
+        mpGameState.current++;
+        mpTFRoundLeft = mpGameState.roundSeg || 6;
+        if (mpGameState.current >= mpGameState.statements.length) {
+          clearInterval(mpGameTimer);
+          mpEndGame();
+          return;
+        }
+        mpBroadcast({ type: 'gameUpdate', mode: 'trueFalse', action: 'newStatement', index: mpGameState.current });
+        mpShowTrueFalse();
+      }
+      if (mpGameState.timeLeft <= 0) {
+        clearInterval(mpGameTimer);
+        if (mpIsHost) mpEndGame();
+      }
+    }, 1000);
   }
 }
 
@@ -5299,12 +5555,8 @@ function mpDueloResponder(answer) {
     res.textContent = `✅ ¡+${points} puntos!`;
     res.className = 'resultado correcto';
     sonido('comida');
+    // El host es la única autoridad de puntos (mpSendToHost se auto-procesa en el host)
     mpSendToHost({ type: 'answer', mode: 'dueloMath', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points });
-    if (mpIsHost) {
-      mpPlayers['host'].score += points;
-      mpRenderPlayers();
-      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
-    }
   } else {
     mpDueloStreak = 0;
     document.getElementById('mpDueloStreak').textContent = 0;
@@ -5626,15 +5878,8 @@ function mpPalabraCheck() {
     document.getElementById('mpPalabraResultado').textContent = `✅ ¡Correcto! +${points}`;
     document.getElementById('mpPalabraResultado').className = 'resultado correcto';
 
+    // El host es la única autoridad: suma puntos y avanza la palabra en mpHandleAnswer
     mpSendToHost({ type: 'answer', mode: 'palabrasVs', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points, wordIndex: mpGameState.currentWord });
-
-    if (mpIsHost) {
-      mpPlayers['host'].score += points;
-      mpRenderPlayers();
-      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
-      mpGameState.currentWord++;
-      setTimeout(mpShowPalabra, 500);
-    }
   } else {
     sonido('error');
     document.getElementById('mpPalabraResultado').textContent = '❌ Sigue intentando...';
@@ -5642,11 +5887,13 @@ function mpPalabraCheck() {
   }
 }
 
-// Handle enter in palabras input
+// Handle enter en los inputs de los juegos multijugador
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && document.getElementById('mpPalabraInput') === document.activeElement) {
-    mpPalabraCheck();
-  }
+  if (e.key !== 'Enter') return;
+  const activo = document.activeElement;
+  if (activo === document.getElementById('mpPalabraInput')) mpPalabraCheck();
+  else if (activo === document.getElementById('mpSpellInput')) mpSpellCheck();
+  else if (activo === document.getElementById('mpChainInput')) mpChainEnviar();
 });
 
 // --- ENGLISH BATTLE UI ---
@@ -5757,16 +6004,9 @@ function mpEnglishBattleResponder(isCorrect, btn) {
       }
     }
 
-    mpSendToHost({ type: 'answer', mode: 'englishBattle', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points });
-
-    if (mpIsHost) {
-      mpPlayers['host'].score = (mpPlayers['host'].score || 0) + points;
-      mpRenderPlayers();
-      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
-      // Avanzar a la siguiente pregunta
-      mpGameState.currentQuestion++;
-      setTimeout(mpShowEnglishBattleQuestion, 900);
-    }
+    // Enviar al host (única autoridad de puntos). Incluye el índice de pregunta
+    // para que respuestas tardías de una pregunta ya avanzada no cuenten.
+    mpSendToHost({ type: 'answer', mode: 'englishBattle', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points, questionIndex: mpGameState.currentQuestion });
   } else {
     mpEnglishStreak = 0;
     document.getElementById('mpEnglishStreak').textContent = 0;
@@ -5784,6 +6024,410 @@ function mpEnglishBattleResponder(isCorrect, btn) {
     } else {
       setTimeout(() => { mpEnglishBattleAnswered = false; }, 1500);
     }
+  }
+}
+
+// --- ESCUCHA VELOZ UI ---
+let mpListenAnswered = false;
+let mpListenStreak = 0;
+
+function mpRenderListenRace(container) {
+  container.innerHTML = `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpListenTimer">90</span>s
+      </div>
+      <div style="text-align:center; font-size:.9rem; color:var(--morado); margin-bottom:10px;">
+        Ronda <span id="mpListenRound">1</span>/15
+      </div>
+      <div style="text-align:center; background:linear-gradient(135deg, rgba(99,102,241,.05), rgba(236,72,153,.05)); border:2px solid var(--borde); border-radius:20px; padding:18px; margin-bottom:14px;">
+        <div style="font-weight:700; color:var(--morado); margin-bottom:10px;">👂 Escucha la palabra en inglés y toca su significado. ¡El más rápido gana!</div>
+        <button class="btn btn-cool" id="mpListenReplay" onclick="mpListenReproducir()">🔊 Escuchar otra vez</button>
+      </div>
+      <div id="mpListenOptions" class="math-options"></div>
+      <p class="resultado" id="mpListenResultado" style="text-align:center; margin-top:10px;"></p>
+      <div style="text-align:center; margin-top:8px; font-size:.85rem; color:var(--morado-claro);">
+        🔥 Tu racha: <span id="mpListenStreakEl">0</span>
+      </div>
+    </div>
+  `;
+}
+
+function mpListenReproducir() {
+  if (!mpGameState || !mpGameState.rounds) return;
+  const r = mpGameState.rounds[mpGameState.currentRound];
+  if (r) engHablar(r.en, 'en-US');
+}
+
+function mpShowListenRaceRound() {
+  mpListenAnswered = false;
+  if (!mpGameState || !mpGameState.rounds) return;
+
+  // Si se acaban las rondas antes del tiempo, terminar (solo el host decide)
+  if (mpGameState.currentRound >= mpGameState.rounds.length) {
+    if (mpIsHost) mpEndGame();
+    return;
+  }
+
+  const r = mpGameState.rounds[mpGameState.currentRound];
+  const roundEl = document.getElementById('mpListenRound');
+  const optsContainer = document.getElementById('mpListenOptions');
+  const resEl = document.getElementById('mpListenResultado');
+
+  if (roundEl) roundEl.textContent = (mpGameState.currentRound + 1);
+  if (resEl) { resEl.textContent = ''; resEl.className = 'resultado'; }
+  if (!optsContainer) return;
+
+  optsContainer.innerHTML = '';
+  r.opciones.forEach((op, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'math-option';
+    btn.innerHTML = '<span style="font-size:1.5rem;">' + op.emoji + '</span><br><span style="font-size:.85rem;">' + op.es + '</span>';
+    btn.onclick = () => mpListenResponder(i === r.correcta, btn);
+    optsContainer.appendChild(btn);
+  });
+
+  // Pronunciar la palabra automáticamente (cada dispositivo la reproduce)
+  setTimeout(() => engHablar(r.en, 'en-US'), 400);
+
+  // El host sincroniza la ronda con los clientes
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'listenRace', action: 'newRound', roundIndex: mpGameState.currentRound });
+  }
+}
+
+function mpListenResponder(isCorrect, btn) {
+  if (mpListenAnswered) return;
+  mpListenAnswered = true;
+
+  const resEl = document.getElementById('mpListenResultado');
+  const r = mpGameState.rounds[mpGameState.currentRound];
+
+  if (isCorrect) {
+    mpListenStreak++;
+    const points = 12 + mpListenStreak * 2;
+    if (resEl) {
+      resEl.textContent = '✅ ¡Correct! "' + r.en + '" +' + points + ' puntos';
+      resEl.className = 'resultado correcto';
+    }
+    document.getElementById('mpListenStreakEl').textContent = mpListenStreak;
+    btn.style.borderColor = 'var(--verde)';
+    btn.style.background = 'rgba(52,211,153,.1)';
+    sonido('correcto');
+    engHablar(r.en, 'en-US');
+
+    // ÚNICA autoridad de puntos: el host, vía mpSendToHost (se auto-procesa
+    // si somos el host). Incluye roundIndex: respuestas tardías no cuentan.
+    mpSendToHost({ type: 'answer', mode: 'listenRace', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points, roundIndex: mpGameState.currentRound });
+  } else {
+    mpListenStreak = 0;
+    document.getElementById('mpListenStreakEl').textContent = 0;
+    if (resEl) {
+      resEl.textContent = '❌ Esa no es... ¡escucha otra vez! 🔊';
+      resEl.className = 'resultado incorrecto';
+    }
+    btn.style.borderColor = 'var(--coral)';
+    btn.style.background = 'rgba(251,113,133,.1)';
+    sonido('error');
+    setTimeout(() => engHablar(r.en, 'en-US'), 300);
+    // Puede volver a intentar tras una pausa (la ronda sigue abierta hasta que alguien acierte)
+    setTimeout(() => { mpListenAnswered = false; }, 1200);
+  }
+}
+
+// --- SPELLING RACE UI ---
+let mpSpellAnswered = false;
+let mpSpellStreak = 0;
+
+function mpRenderSpellingRace(container) {
+  container.innerHTML = `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpSpellTimer">120</span>s
+      </div>
+      <div style="text-align:center; font-size:.9rem; color:var(--morado); margin-bottom:10px;">
+        Palabra <span id="mpSpellNum">1</span>/12
+      </div>
+      <div style="text-align:center; background:linear-gradient(135deg, rgba(251,191,36,.08), rgba(236,72,153,.05)); border:2px solid var(--borde); border-radius:20px; padding:16px; margin-bottom:12px;">
+        <div id="mpSpellEmoji" style="font-size:3rem;">🐝</div>
+        <div id="mpSpellPista" style="font-size:.9rem; color:var(--morado-claro); margin:6px 0;">Pista: ...</div>
+        <button class="btn btn-cool btn-sm" onclick="mpSpellReproducir()">🔊 Escuchar otra vez</button>
+      </div>
+      <input type="text" id="mpSpellInput" class="eng-text-input" placeholder="Escribe la palabra en inglés..." autocomplete="off" autocapitalize="none" style="width:100%;" />
+      <div style="text-align:center; margin-top:8px;">
+        <button class="btn btn-primary" onclick="mpSpellCheck()">✨ Comprobar</button>
+      </div>
+      <p class="resultado" id="mpSpellResultado" style="text-align:center; margin-top:10px;"></p>
+      <div style="text-align:center; margin-top:6px; font-size:.85rem; color:var(--morado-claro);">
+        🔥 Tu racha: <span id="mpSpellStreakEl">0</span>
+      </div>
+    </div>
+  `;
+}
+
+function mpSpellReproducir() {
+  if (!mpGameState || !mpGameState.words) return;
+  const w = mpGameState.words[mpGameState.currentWord];
+  if (w) engHablar(w.en, 'en-US');
+}
+
+function mpShowSpellingWord() {
+  mpSpellAnswered = false;
+  if (!mpGameState || !mpGameState.words) return;
+  if (mpGameState.currentWord >= mpGameState.words.length) {
+    if (mpIsHost) mpEndGame();
+    return;
+  }
+  const w = mpGameState.words[mpGameState.currentWord];
+  const numEl = document.getElementById('mpSpellNum');
+  const emojiEl = document.getElementById('mpSpellEmoji');
+  const pistaEl = document.getElementById('mpSpellPista');
+  const inputEl = document.getElementById('mpSpellInput');
+  const resEl = document.getElementById('mpSpellResultado');
+  if (numEl) numEl.textContent = (mpGameState.currentWord + 1);
+  if (emojiEl) emojiEl.textContent = w.emoji;
+  if (pistaEl) pistaEl.textContent = 'Pista: ' + w.es;
+  if (inputEl) { inputEl.value = ''; inputEl.disabled = false; setTimeout(() => inputEl.focus(), 200); }
+  if (resEl) { resEl.textContent = ''; resEl.className = 'resultado'; }
+  setTimeout(() => engHablar(w.en, 'en-US'), 400);
+  if (mpIsHost) {
+    mpBroadcast({ type: 'gameUpdate', mode: 'spellingRace', action: 'newWord', wordIndex: mpGameState.currentWord });
+  }
+}
+
+function mpSpellCheck() {
+  if (mpSpellAnswered) return;
+  const inputEl = document.getElementById('mpSpellInput');
+  const resEl = document.getElementById('mpSpellResultado');
+  if (!inputEl || !mpGameState) return;
+  const w = mpGameState.words[mpGameState.currentWord];
+  const resp = inputEl.value.trim().toLowerCase();
+  if (!resp) return;
+  const correcta = w.en.toLowerCase();
+
+  if (resp === correcta) {
+    mpSpellAnswered = true;
+    mpSpellStreak++;
+    const points = 15 + mpSpellStreak * 2;
+    if (resEl) { resEl.textContent = '✅ Perfect spelling! +' + points; resEl.className = 'resultado correcto'; }
+    document.getElementById('mpSpellStreakEl').textContent = mpSpellStreak;
+    sonido('correcto');
+    engHablar(w.en, 'en-US');
+    // ÚNICA autoridad de puntos: el host vía mpSendToHost (guard con wordIndex)
+    mpSendToHost({ type: 'answer', mode: 'spellingRace', playerId: mpIsHost ? 'host' : mpMyId, correct: true, points, wordIndex: mpGameState.currentWord });
+  } else {
+    mpSpellStreak = 0;
+    document.getElementById('mpSpellStreakEl').textContent = 0;
+    let bien = 0;
+    for (let i = 0; i < Math.min(resp.length, correcta.length); i++) {
+      if (resp[i] === correcta[i]) bien++; else break;
+    }
+    if (resEl) { resEl.textContent = '❌ Las primeras ' + bien + ' letras van bien. ¡Escucha otra vez! 🔊'; resEl.className = 'resultado incorrecto'; }
+    sonido('error');
+    engHablar(w.en, 'en-US');
+    mpSpellAnswered = true;
+    setTimeout(() => { mpSpellAnswered = false; }, 800);
+  }
+}
+
+// --- CADENA DE PALABRAS UI ---
+function mpRenderWordChain(container) {
+  container.innerHTML = `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpChainTimer">120</span>s &nbsp;|&nbsp; Turno: <span id="mpChainTurnSeg">20</span>s
+      </div>
+      <div style="text-align:center; font-weight:700; color:var(--morado); margin-bottom:8px;">
+        Turno de: <span id="mpChainTurnName">...</span> <span id="mpChainTurnAvatar"></span>
+      </div>
+      <div style="text-align:center; background:linear-gradient(135deg, rgba(52,211,153,.08), rgba(99,102,241,.05)); border:2px solid var(--borde); border-radius:20px; padding:14px; margin-bottom:10px;">
+        <div style="font-size:.85rem; color:var(--morado-claro);">La siguiente palabra debe empezar con:</div>
+        <div id="mpChainLetra" style="font-size:2.6rem; font-weight:800; color:var(--coral); font-family:'Baloo 2',sans-serif;">?</div>
+      </div>
+      <div id="mpChainCadena" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px; min-height:34px;"></div>
+      <input type="text" id="mpChainInput" class="eng-text-input" placeholder="Tu palabra en inglés..." autocomplete="off" autocapitalize="none" style="width:100%;" />
+      <div style="text-align:center; margin-top:8px; display:flex; gap:8px; justify-content:center;">
+        <button class="btn btn-primary" onclick="mpChainEnviar()">🔗 Enviar</button>
+        <button class="btn btn-ghost btn-sm" onclick="mpChainPasar()">😅 Pasar turno</button>
+      </div>
+      <p class="resultado" id="mpChainResultado" style="text-align:center; margin-top:10px;"></p>
+    </div>
+  `;
+}
+
+let mpChainSegLocal = 20;
+let mpChainSegInterval = null;
+
+function mpChainContadorLocal() {
+  clearInterval(mpChainSegInterval);
+  mpChainSegLocal = MP_CHAIN_TURNO_SEG;
+  const el = document.getElementById('mpChainTurnSeg');
+  if (el) el.textContent = mpChainSegLocal;
+  mpChainSegInterval = setInterval(() => {
+    mpChainSegLocal--;
+    const e = document.getElementById('mpChainTurnSeg');
+    if (e) e.textContent = Math.max(0, mpChainSegLocal);
+    if (mpChainSegLocal <= 0) clearInterval(mpChainSegInterval);
+  }, 1000);
+}
+
+function mpShowWordChain() {
+  if (!mpGameState) return;
+  const myId = mpIsHost ? 'host' : mpMyId;
+  const esMiTurno = mpGameState.currentTurn === myId;
+  const turnP = mpPlayers[mpGameState.currentTurn];
+  const nameEl = document.getElementById('mpChainTurnName');
+  const avEl = document.getElementById('mpChainTurnAvatar');
+  const letraEl = document.getElementById('mpChainLetra');
+  const cadenaEl = document.getElementById('mpChainCadena');
+  const inputEl = document.getElementById('mpChainInput');
+  if (nameEl) nameEl.textContent = turnP ? turnP.name : '?';
+  if (avEl) avEl.textContent = turnP ? turnP.avatar : '';
+  if (letraEl) letraEl.textContent = mpGameState.letraActual ? mpGameState.letraActual.toUpperCase() : '🎁 Libre';
+  if (cadenaEl) {
+    cadenaEl.innerHTML = '';
+    const ultimas = (mpGameState.usadas || []).slice(-8);
+    ultimas.forEach(w => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'background:white; border:2px solid var(--borde); border-radius:999px; padding:4px 12px; font-size:.85rem; font-weight:700; color:var(--morado);';
+      chip.textContent = w;
+      cadenaEl.appendChild(chip);
+    });
+  }
+  if (inputEl) {
+    inputEl.disabled = !esMiTurno;
+    inputEl.placeholder = esMiTurno ? '¡Tu turno! Palabra en inglés...' : 'Espera tu turno...';
+    if (esMiTurno) setTimeout(() => inputEl.focus(), 200);
+  }
+  mpChainContadorLocal();
+}
+
+function mpChainEnviar() {
+  const inputEl = document.getElementById('mpChainInput');
+  if (!inputEl || !mpGameState) return;
+  const myId = mpIsHost ? 'host' : mpMyId;
+  if (mpGameState.currentTurn !== myId) return;
+  const word = inputEl.value.trim().toLowerCase();
+  if (!word) return;
+  mpSendToHost({ type: 'answer', mode: 'wordChain', action: 'palabra', playerId: myId, word });
+  inputEl.value = '';
+}
+
+function mpChainPasar() {
+  const myId = mpIsHost ? 'host' : mpMyId;
+  if (!mpGameState || mpGameState.currentTurn !== myId) return;
+  mpSendToHost({ type: 'answer', mode: 'wordChain', action: 'pasar', playerId: myId });
+}
+
+function mpChainMostrarRechazo(motivo) {
+  const resEl = document.getElementById('mpChainResultado');
+  if (resEl) { resEl.textContent = '❌ ' + motivo; resEl.className = 'resultado incorrecto'; }
+  sonido('error');
+}
+
+// Solo el HOST: avanzar turno (saltando jugadores desconectados) y reiniciar timer
+function mpChainAvanzarTurno() {
+  if (!mpIsHost || !mpGameState) return;
+  let intentos = 0;
+  do {
+    mpGameState.turnIndex = (mpGameState.turnIndex + 1) % mpGameState.turnOrder.length;
+    mpGameState.currentTurn = mpGameState.turnOrder[mpGameState.turnIndex];
+    intentos++;
+  } while (mpPlayers[mpGameState.currentTurn] && mpPlayers[mpGameState.currentTurn].desconectado && intentos <= mpGameState.turnOrder.length);
+  mpChainIniciarTurnoTimer();
+}
+
+function mpChainIniciarTurnoTimer() {
+  if (!mpIsHost) return;
+  clearTimeout(mpChainTurnTimer);
+  mpChainTurnTimer = setTimeout(() => {
+    if (!mpGameEnCurso || mpGameMode !== 'wordChain') return;
+    mpChainAvanzarTurno();
+    mpBroadcast({ type: 'gameUpdate', mode: 'wordChain', action: 'estado', st: mpChainEstado(), aviso: '⏰ Se acabó el tiempo del turno' });
+    mpShowWordChain();
+  }, MP_CHAIN_TURNO_SEG * 1000);
+}
+
+function mpChainEstado() {
+  return {
+    usadas: mpGameState.usadas,
+    letraActual: mpGameState.letraActual,
+    currentTurn: mpGameState.currentTurn,
+    turnOrder: mpGameState.turnOrder,
+    turnIndex: mpGameState.turnIndex,
+    timeLeft: mpGameState.timeLeft
+  };
+}
+
+// --- VERDADERO O FALSO UI ---
+let mpTFAnswered = false;
+let mpTFStreak = 0;
+let mpTFRoundLeft = 6;
+
+function mpRenderTrueFalse(container) {
+  container.innerHTML = `
+    <div class="mp-game-inner">
+      <div style="text-align:center; font-weight:700; color:var(--morado-claro); margin-bottom:8px;">
+        ⏱️ <span id="mpTFTimer">90</span>s &nbsp;|&nbsp; Ronda: <span id="mpTFRoundTimer">6</span>s
+      </div>
+      <div style="text-align:center; font-size:.9rem; color:var(--morado); margin-bottom:10px;">
+        Afirmación <span id="mpTFNum">1</span>/15 — ¡Todos pueden ganar puntos en cada ronda!
+      </div>
+      <div id="mpTFStatement" class="math-problem" style="font-size:1.25rem; padding:16px; text-align:center;">...</div>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:14px;">
+        <button class="btn btn-forest btn-lg" id="mpTFBtnV" onclick="mpTFResponder(true)" style="flex:1; max-width:200px; font-size:1.1rem;">✅ VERDADERO</button>
+        <button class="btn btn-warm btn-lg" id="mpTFBtnF" onclick="mpTFResponder(false)" style="flex:1; max-width:200px; font-size:1.1rem;">❌ FALSO</button>
+      </div>
+      <p class="resultado" id="mpTFResultado" style="text-align:center; margin-top:12px;"></p>
+      <div style="text-align:center; margin-top:6px; font-size:.85rem; color:var(--morado-claro);">
+        🔥 Tu racha: <span id="mpTFStreakEl">0</span>
+      </div>
+    </div>
+  `;
+}
+
+function mpShowTrueFalse() {
+  mpTFAnswered = false;
+  if (!mpGameState || !mpGameState.statements) return;
+  if (mpGameState.current >= mpGameState.statements.length) return;
+  const st = mpGameState.statements[mpGameState.current];
+  const numEl = document.getElementById('mpTFNum');
+  const stEl = document.getElementById('mpTFStatement');
+  const resEl = document.getElementById('mpTFResultado');
+  if (numEl) numEl.textContent = (mpGameState.current + 1);
+  if (stEl) stEl.textContent = st.texto;
+  if (resEl) { resEl.textContent = ''; resEl.className = 'resultado'; }
+  const bv = document.getElementById('mpTFBtnV');
+  const bf = document.getElementById('mpTFBtnF');
+  if (bv) bv.disabled = false;
+  if (bf) bf.disabled = false;
+  setTimeout(() => engHablar(st.en, 'en-US'), 350);
+}
+
+function mpTFResponder(eleccion) {
+  if (mpTFAnswered || !mpGameState) return;
+  mpTFAnswered = true;
+  const st = mpGameState.statements[mpGameState.current];
+  const resEl = document.getElementById('mpTFResultado');
+  const bv = document.getElementById('mpTFBtnV');
+  const bf = document.getElementById('mpTFBtnF');
+  if (bv) bv.disabled = true;
+  if (bf) bf.disabled = true;
+  const acierto = (eleccion === st.correcta);
+
+  if (acierto) {
+    mpTFStreak++;
+    const points = 10 + mpTFStreak * 2;
+    if (resEl) { resEl.textContent = '✅ ¡Correcto! +' + points; resEl.className = 'resultado correcto'; }
+    document.getElementById('mpTFStreakEl').textContent = mpTFStreak;
+    sonido('correcto');
+    // ÚNICA autoridad de puntos: el host verifica la elección y el índice
+    mpSendToHost({ type: 'answer', mode: 'trueFalse', playerId: mpIsHost ? 'host' : mpMyId, choice: eleccion, points, statementIndex: mpGameState.current });
+  } else {
+    mpTFStreak = 0;
+    document.getElementById('mpTFStreakEl').textContent = 0;
+    if (resEl) { resEl.textContent = '❌ Era ' + (st.correcta ? 'VERDADERO' : 'FALSO'); resEl.className = 'resultado incorrecto'; }
+    sonido('error');
   }
 }
 
@@ -5834,8 +6478,99 @@ function mpHandleAnswer(data) {
     }
   }
   else if (data.mode === 'englishBattle' && data.correct) {
+    // Ignorar respuestas tardías de una pregunta que ya avanzó
+    // (garantiza que solo el PRIMER jugador en acertar gana la pregunta)
+    if (typeof data.questionIndex === 'number' && data.questionIndex !== mpGameState.currentQuestion) return;
     if (mpPlayers[data.playerId]) {
-      mpPlayers[data.playerId].score += data.points;
+      mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+    // Avanzar la pregunta para TODOS cuando cualquier jugador acierta
+    mpGameState.currentQuestion++;
+    setTimeout(mpShowEnglishBattleQuestion, 900);
+  }
+  else if (data.mode === 'listenRace' && data.correct) {
+    // Guard de ronda: solo el PRIMER jugador en acertar gana esta ronda
+    if (typeof data.roundIndex === 'number' && data.roundIndex !== mpGameState.currentRound) return;
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+    // Avanzar la ronda para TODOS
+    mpGameState.currentRound++;
+    setTimeout(mpShowListenRaceRound, 1000);
+  }
+  else if (data.mode === 'spellingRace' && data.correct) {
+    // Guard: solo el PRIMER jugador en escribirla bien gana la palabra
+    if (typeof data.wordIndex === 'number' && data.wordIndex !== mpGameState.currentWord) return;
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + data.points;
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+    }
+    mpGameState.currentWord++;
+    setTimeout(mpShowSpellingWord, 1000);
+  }
+  else if (data.mode === 'wordChain') {
+    // Validación 100% en el host (autoridad única)
+    if (data.playerId !== mpGameState.currentTurn) return; // no es su turno
+    if (data.action === 'pasar') {
+      mpChainAvanzarTurno();
+      mpBroadcast({ type: 'gameUpdate', mode: 'wordChain', action: 'estado', st: mpChainEstado(), aviso: null });
+      mpShowWordChain();
+      return;
+    }
+    if (data.action === 'palabra') {
+      const w = (data.word || '').toLowerCase().trim();
+      let motivo = null;
+      if (!/^[a-z]+$/.test(w)) motivo = 'Solo letras, sin espacios ni números';
+      else if (mpGameState.letraActual && w[0] !== mpGameState.letraActual) motivo = 'Debe empezar con "' + mpGameState.letraActual.toUpperCase() + '"';
+      else if (mpGameState.usadas.includes(w)) motivo = '"' + w + '" ya se usó en la cadena';
+      else if (!ENGLISH_CHAIN_DICT.has(w)) motivo = 'No conozco esa palabra en inglés 😅 Intenta otra';
+
+      if (motivo) {
+        // Rechazo: avisar SOLO al jugador que la envió (sigue siendo su turno)
+        if (data.playerId === 'host') {
+          mpChainMostrarRechazo(motivo);
+        } else {
+          const conn = mpConnections[data.playerId];
+          if (conn && conn.open) conn.send({ type: 'gameUpdate', mode: 'wordChain', action: 'rechazo', motivo });
+        }
+        return;
+      }
+
+      // Palabra aceptada: puntos, actualizar cadena, avanzar turno
+      const points = 10 + w.length;
+      if (mpPlayers[data.playerId]) {
+        mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + points;
+      }
+      mpGameState.usadas.push(w);
+      mpGameState.letraActual = w[w.length - 1];
+      mpChainAvanzarTurno();
+      mpRenderPlayers();
+      mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
+      mpBroadcast({ type: 'gameUpdate', mode: 'wordChain', action: 'estado', st: mpChainEstado(), ultimaPalabra: w, puntosGanados: points, quien: data.playerId });
+      // Feedback local del host
+      const resEl = document.getElementById('mpChainResultado');
+      if (resEl) {
+        const p = mpPlayers[data.playerId];
+        resEl.textContent = '🔗 ' + (p ? p.name : '?') + ' agregó "' + w + '" (+' + points + ')';
+        resEl.className = 'resultado correcto';
+      }
+      engHablar(w, 'en-US');
+      sonido('correcto');
+      mpShowWordChain();
+    }
+  }
+  else if (data.mode === 'trueFalse') {
+    // Guard de ronda; TODOS los jugadores pueden puntuar en cada afirmación
+    if (typeof data.statementIndex !== 'number' || data.statementIndex !== mpGameState.current) return;
+    const st = mpGameState.statements[data.statementIndex];
+    if (!st || data.choice !== st.correcta) return; // el host verifica la respuesta
+    if (mpPlayers[data.playerId]) {
+      mpPlayers[data.playerId].score = (mpPlayers[data.playerId].score || 0) + (data.points || 10);
       mpRenderPlayers();
       mpBroadcast({ type: 'playerList', players: mpStripPlayers() });
     }
@@ -5881,11 +6616,57 @@ function mpHandleGameUpdate(data) {
       mpShowEnglishBattleQuestion();
     }
   }
+  else if (data.mode === 'listenRace') {
+    if (data.action === 'newRound') {
+      mpGameState.currentRound = data.roundIndex;
+      mpShowListenRaceRound();
+    }
+  }
+  else if (data.mode === 'spellingRace') {
+    if (data.action === 'newWord') {
+      mpGameState.currentWord = data.wordIndex;
+      mpShowSpellingWord();
+    }
+  }
+  else if (data.mode === 'wordChain') {
+    if (data.action === 'estado') {
+      // Sincronizar estado completo de la cadena
+      Object.assign(mpGameState, data.st);
+      if (data.ultimaPalabra) {
+        const resEl = document.getElementById('mpChainResultado');
+        if (resEl) {
+          const p = mpPlayers[data.quien];
+          resEl.textContent = '🔗 ' + (p ? p.name : 'Alguien') + ' agregó "' + data.ultimaPalabra + '" (+' + (data.puntosGanados || 0) + ')';
+          resEl.className = 'resultado correcto';
+        }
+        engHablar(data.ultimaPalabra, 'en-US');
+        sonido('comida');
+      }
+      if (data.aviso) {
+        const resEl = document.getElementById('mpChainResultado');
+        if (resEl) { resEl.textContent = data.aviso; resEl.className = 'resultado'; }
+      }
+      mpShowWordChain();
+    }
+    else if (data.action === 'rechazo') {
+      mpChainMostrarRechazo(data.motivo);
+    }
+  }
+  else if (data.mode === 'trueFalse') {
+    if (data.action === 'newStatement') {
+      mpGameState.current = data.index;
+      mpTFRoundLeft = mpGameState.roundSeg || 6;
+      mpShowTrueFalse();
+    }
+  }
 }
 
 // === END GAME ===
 function mpEndGame() {
+  mpGameEnCurso = false;
   clearInterval(mpGameTimer);
+  clearTimeout(mpChainTurnTimer);
+  clearInterval(mpChainSegInterval);
   sonido('win');
   lanzarConfetti();
 
@@ -5944,7 +6725,10 @@ function mpShowResults(data) {
 }
 
 function mpVolverLobby() {
+  mpGameEnCurso = false;
   clearInterval(mpGameTimer);
+  clearTimeout(mpChainTurnTimer);
+  clearInterval(mpChainSegInterval);
   document.getElementById('mpGameArea').style.display = 'none';
   document.getElementById('mpGameResult').style.display = 'none';
   document.getElementById('mpGameContent').innerHTML = '';
